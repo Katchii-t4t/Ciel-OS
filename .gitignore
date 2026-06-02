@@ -1,0 +1,45 @@
+# Secrets — aldri commit API-nøklar
+.env
+*.env
+secrets.py
+config_secret.py
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# HuggingFace model cache (stor, ikkje i repo)
+*.bin
+*.safetensors
+*.gguf
+models/
+huggingface/
+
+# Logs og temp
+*.log
+*.tmp
+*.bak
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Windows
+Thumbs.db
+desktop.ini
