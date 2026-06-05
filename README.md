@@ -95,6 +95,30 @@ er blokkert, og kvar kommando vert logga til `logs/action_log.jsonl`.
 - **Claude (djup):** `claude-sonnet-4-6` (Ciel-A / `deep: true`)
 - **Whisper:** `NbAiLab/nb-whisper-medium` (norsk-optimalisert, ~1.5 GB)
 
+## Nettbrett-klient (Fase 2)
+
+`ciel_app/` — Flutter-app (tynn klient) som koplar seg til PC-hjernen over
+WiFi/Tailscale. Viser Ciel-orben (port av orb-prototypen til CustomPainter),
+har eit spør-felt med token-for-token typewriter, og speglar modus-fargen.
+
+```powershell
+cd ciel_app
+flutter pub get
+flutter run -d chrome          # førehandsvis i nettlesar
+# flutter run -d <tablet-id>   # på Tab S10+ (krev Android SDK)
+flutter build web              # → build/web
+```
+
+Server-URL vert lagra på eininga (standard `http://192.168.10.194:8765`).
+Lang-trykk på orben → innstillingar (server-URL, modus, girl mode).
+
+| Fil | Innhald |
+|-----|---------|
+| `lib/main.dart` | App-rot, mørkt tema |
+| `lib/screens/home.dart` | Heimskjerm: orb, spør-felt, svar, innstillingar |
+| `lib/services/ciel_api.dart` | REST + WebSocket-klient mot ciel_server.py |
+| `lib/widgets/orb.dart` | Ciel-orben (CustomPainter) — gull + girl mode |
+
 ## Portabilitet
 Vault-stien vert no funnen automatisk under `%USERPROFILE%\OneDrive\Obidian stasj`
 (overstyr med miljøvariabelen `CIEL_VAULT`). Ingen hardkoda brukarnamn.
