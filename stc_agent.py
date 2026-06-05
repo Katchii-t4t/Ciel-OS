@@ -30,12 +30,21 @@ os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 # ── Konfigurasjon ──────────────────────────────────────────────────────────────
-_parent = Path("C:/Users/Karthik/OneDrive/Obidian stasj")
-_match  = [d for d in _parent.iterdir() if "stash" in d.name.lower() and "Copy" not in d.name]
-if not _match:
-    print("FEIL: Fann ikkje vault-mappa!"); raise SystemExit(1)
-
-VAULT        = _match[0]
+# Vault-deteksjon — portabel (fungerer på alle maskiner, uavhengig av brukarnamn).
+# Overstyr med miljøvariabelen CIEL_VAULT (peikar rett på vault-rota) om du vil.
+_env_vault = os.environ.get("CIEL_VAULT")
+if _env_vault:
+    VAULT = Path(_env_vault)
+    if not VAULT.is_dir():
+        print(f"FEIL: CIEL_VAULT peikar ikkje på ei mappe: {VAULT}"); raise SystemExit(1)
+else:
+    _home   = Path(os.environ.get("USERPROFILE") or Path.home())
+    _parent = _home / "OneDrive" / "Obidian stasj"
+    _match  = ([d for d in _parent.iterdir() if "stash" in d.name.lower() and "Copy" not in d.name]
+               if _parent.is_dir() else [])
+    if not _match:
+        print(f"FEIL: Fann ikkje vault-mappa under {_parent}!"); raise SystemExit(1)
+    VAULT = _match[0]
 MODEL        = "claude-haiku-4-5"
 POLL_SECS    = 3
 STREAM_CHUNK = 12   # Skriv til fil kvar N teikn → skrivemaskin-effekt
@@ -84,16 +93,17 @@ BOARD_COLORS = {
     "coord":        "#E8D5B0",   # lyse koordinatar i kanten
 }
 
-if not os.environ.get("ANTHROPIC_API_KEY"):
-    print("FEIL: ANTHROPIC_API_KEY er ikkje sett!"); raise SystemExit(1)
+# Lazy klient — vert berre oppretta når vi faktisk treng API-et.
+# Slik kan modulen importerast (t.d. av ciel_server.py) utan at nøkkelen finst enno.
+_client = None
 
-client = anthropic.Anthropic()
-
-print("Ciel-agent v3 startar")
-print(f"Vault : {VAULT.name}")
-print(f"Modell: {MODEL}")
-print("Prefiks: Ciel: | Ciel-sjekk: | Ciel-A: | Ciel-diagram: | Ciel-skriv: | Ciel-kryssref: | Ciel-latex: | Ciel-eksamen: | Ciel-forslag: | Ciel-chess:")
-print("Overvaker alle .md-filer — Ctrl+C for aa stoppe\n")
+def _get_client():
+    global _client
+    if _client is None:
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            raise RuntimeError("ANTHROPIC_API_KEY er ikkje sett!")
+        _client = anthropic.Anthropic()
+    return _client
 
 
 # ── Vault-søk ─────────────────────────────────────────────────────────────────
@@ -289,7 +299,7 @@ def stream_to_file(filepath, pre_lines, post_lines, header, prompt, max_tokens=9
     write_current(cursor=True)  # Vis cursor med ein gong
 
     try:
-        with client.messages.stream(
+        with _get_client().messages.stream(
             model=MODEL, max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}]
         ) as stream:
@@ -715,7 +725,7 @@ Bruk sjakkterminologi (gaffel, binding, rokade, opent spel osv). På norsk."""
 
     print(f"  [chess] Ber om analyse ({len(svg_refs)} trekk)...")
     analyse_rå = ""
-    with client.messages.stream(
+    with _get_client().messages.stream(
         model=MODEL, max_tokens=2500,
         messages=[{"role": "user", "content": analyse_prompt}]
     ) as stream:
@@ -966,37 +976,50 @@ def process_file(filepath):
 
 
 # ── Hovudløkke ────────────────────────────────────────────────────────────────
-file_mtimes: dict = {}
-print("Aktiv. Ventar på StC:-spørsmål i alle .md-filer...\n")
+def main():
+    print("Ciel-agent v3 startar")
+    print(f"Vault : {VAULT.name}")
+    print(f"Modell: {MODEL}")
+    print("Prefiks: Ciel: | Ciel-sjekk: | Ciel-A: | Ciel-diagram: | Ciel-skriv: | "
+          "Ciel-kryssref: | Ciel-latex: | Ciel-eksamen: | Ciel-forslag: | Ciel-chess:")
+    print("Overvaker alle .md-filer — Ctrl+C for aa stoppe\n")
+    _get_client()  # valider at API-nøkkelen finst før vi startar løkka
 
-try:
-    while True:
-        time.sleep(POLL_SECS)
+    file_mtimes: dict = {}
+    print("Aktiv. Ventar på StC:-spørsmål i alle .md-filer...\n")
 
-        for filepath in VAULT.rglob("*.md"):
-            if any(d in filepath.parts for d in IGNORE): continue
-            if filepath in _writing_files: continue
+    try:
+        while True:
+            time.sleep(POLL_SECS)
 
-            try:
-                mtime = filepath.stat().st_mtime
-            except Exception:
-                continue
+            for filepath in VAULT.rglob("*.md"):
+                if any(d in filepath.parts for d in IGNORE): continue
+                if filepath in _writing_files: continue
 
-            if file_mtimes.get(filepath) == mtime:
-                continue
+                try:
+                    mtime = filepath.stat().st_mtime
+                except Exception:
+                    continue
 
-            file_mtimes[filepath] = mtime
+                if file_mtimes.get(filepath) == mtime:
+                    continue
 
-            # Les berre filer som faktisk inneheld eit StC-prefiks
-            try:
-                txt = filepath.read_text(encoding="utf-8", errors="ignore")
-            except Exception:
-                continue
+                file_mtimes[filepath] = mtime
 
-            if any(p in txt for p in PREFIXES):
-                process_file(filepath)
-            else:
-                autolink_fil(filepath)  # Auto-link vanlege notat utan Ciel:-prefiks
+                # Les berre filer som faktisk inneheld eit StC-prefiks
+                try:
+                    txt = filepath.read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    continue
 
-except KeyboardInterrupt:
-    print("\nStoppa.")
+                if any(p in txt for p in PREFIXES):
+                    process_file(filepath)
+                else:
+                    autolink_fil(filepath)  # Auto-link vanlege notat utan Ciel:-prefiks
+
+    except KeyboardInterrupt:
+        print("\nStoppa.")
+
+
+if __name__ == "__main__":
+    main()

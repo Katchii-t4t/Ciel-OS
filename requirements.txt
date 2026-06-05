@@ -1,0 +1,14 @@
+# Ciel backend — Fase 1 (ciel_server.py + stc_agent.py + stc_pdf.py)
+anthropic
+fastapi
+uvicorn[standard]
+websockets
+python-multipart
+pdfplumber
+python-chess
+requests
+
+# Lyd-transkribering (stc_lyd.py — Module C, Fase 3). Store pakkar, valfritt:
+# transformers
+# accelerate
+# torch

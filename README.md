@@ -29,12 +29,18 @@ Ciel er eit sett Python-agentar som overvaker Obsidian-vaulten og svarar automat
 | `stc_pdf.py` | PDF-agent — les og svarar på spørsmål om PDF-embeddar |
 | `stc_autolink.py` | Autolenkjar — lagar wikilenker mellom notat |
 | `stc_morning.py` | Morgenoversikt — dagleg samandrag |
+| `ciel_server.py` | **Backend-server (Fase 1)** — FastAPI som eksponerer Ciel for nettbrett/telefon |
 
 ## Oppsett
 
 ### Krav
+Backend (Fase 1) — lett sett, ingen torch:
 ```
-pip install anthropic transformers accelerate torch
+pip install -r requirements.txt
+```
+Lyd-transkribering (Fase 3) i tillegg:
+```
+pip install transformers accelerate torch
 ```
 
 ### API-nøkkel
@@ -52,9 +58,46 @@ start_stc_agent.bat
 start_stc_lyd.bat
 ```
 
+## Backend-server (Fase 1)
+
+`ciel_server.py` pakkar inn agent-logikken og gjer Ciel tilgjengeleg for tynne
+klientar (nettbrett/telefon) over HTTP + WebSocket. PC-en er hjernen; klientane
+renderer berre. Berre serveren snakkar med Anthropic — klientane gjer det aldri.
+
+Start:
+```powershell
+$env:ANTHROPIC_API_KEY = [System.Environment]::GetEnvironmentVariable("ANTHROPIC_API_KEY","User")
+python ciel_server.py            # http://0.0.0.0:8765
+```
+Interaktive API-dokument: `http://localhost:8765/docs`
+
+| Endepunkt | Funksjon |
+|-----------|----------|
+| `POST /api/ask` | Spør Ciel (`{question, deep, context}`) → heile svaret |
+| `WS /ws/stream` | Token-for-token typewriter (`{token}` per bit) |
+| `WS /ws/events` | Push: modusbyte, girl-mode, status |
+| `GET /api/vault/notes` | Siste notat i vaulten |
+| `GET /api/vault/note?path=` | Eitt notat sitt innhald |
+| `POST /api/command` | Fast allow-liste: `set_mode`, `set_girl_mode`, `open_note`, `search_vault` |
+| `GET /api/state` | Gjeldande modus + farge |
+| `GET /api/tracker/today` | Dagsscore (stub — Fase 5) |
+| `POST /api/transcribe` | Lyd → tekst (Fase 3) |
+
+**Smart LLM-routing:** billegaste modell som klarar jobben — Haiku for vanlege
+spørsmål, Sonnet for djupe (`deep: true`). Overstyrbart med `CIEL_MODEL_*`.
+
+**Tryggleik:** API-nøkkel berre frå miljøvariabel. `/api/command` køyrer berre
+handlingar frå ei fast allow-liste (ingen vilkårleg eksekvering), path-traversal
+er blokkert, og kvar kommando vert logga til `logs/action_log.jsonl`.
+
 ## Modell
-- **Claude:** `claude-haiku-4-5` (rask, billeg, god nok for notat)
+- **Claude (vanleg):** `claude-haiku-4-5` (rask, billeg, god nok for notat)
+- **Claude (djup):** `claude-sonnet-4-6` (Ciel-A / `deep: true`)
 - **Whisper:** `NbAiLab/nb-whisper-medium` (norsk-optimalisert, ~1.5 GB)
+
+## Portabilitet
+Vault-stien vert no funnen automatisk under `%USERPROFILE%\OneDrive\Obidian stasj`
+(overstyr med miljøvariabelen `CIEL_VAULT`). Ingen hardkoda brukarnamn.
 
 ## Vault-struktur
 ```
