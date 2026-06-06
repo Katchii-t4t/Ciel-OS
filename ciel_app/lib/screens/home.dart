@@ -70,25 +70,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // alltid har orben sjølv om noko nullstilte han.
   Future<void> _ensureWallpaper() async {
     try {
-      // Rør ALDRI det levande Ciel-bakgrunnet (det orbiterer!). Set berre eit
-      // statisk fallback-bilete om det levande er tapt (t.d. etter app-reinstall).
-      final livePkg = await Launcher.liveWallpaperPkg();
-      if (livePkg != null && livePkg.contains('ciel_app')) {
-        // Levande Ciel er aktiv som system-bakgrunn → fjern evt. statisk lås-override
-        // så det LEVANDE (orbiterande) bakgrunnet viser på låsskjermen òg.
+      // Låsskjermen skal spegle system-bakgrunnen (det levande Ciel-orbet).
+      // Fjern berre den statiske lås-overriden NÅR det finst eit levande Ciel-
+      // bakgrunn under å avdekke — elles ville låsen bli standard/tom. Vi set
+      // ALDRI eit statisk bilete automatisk lenger (det drap rørsla før).
+      final pkg = await Launcher.liveWallpaperPkg();
+      if (pkg != null && pkg.contains('ciel_app')) {
         await Launcher.clearLockWallpaper();
-        return;
       }
-      if (!mounted) return;
-      final sz = MediaQuery.of(context).size;
-      final dpr = MediaQuery.of(context).devicePixelRatio;
-      final png = await renderOrbPng(
-        width: (sz.width * dpr).round(),
-        height: (sz.height * dpr).round(),
-        color: _modeColor,
-        girl: _girlPermanent || _girlMode,
-      );
-      if (png != null) await Launcher.setLockWallpaper(png);
     } catch (_) {}
   }
 
@@ -342,7 +331,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
-    if (state == AppLifecycleState.resumed) _greet(); // "God morgon, Dr. Katchi" etter opplåsing
+    if (state == AppLifecycleState.resumed) {
+      _greet(); // "Good evening, Dr. Katchi" etter opplåsing
+      // Hald låsskjermen = system-bakgrunn (levande orb). Køyrer på resume så vi
+      // slepp force-stop (som ville drepe det levande bakgrunnet). Guarda så vi
+      // berre fjernar lås-override når det levande Ciel-bakgrunnet faktisk finst.
+      _ensureWallpaper();
+    }
     if (!_overlayPerm) return;
     try {
       if (state == AppLifecycleState.paused) {
