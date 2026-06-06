@@ -23,6 +23,18 @@ class MainActivity : FlutterFragmentActivity() {
                     "listApps" -> result.success(listAppLabels())
                     "setLockWallpaper" -> result.success(setLockWallpaper(call.argument<ByteArray>("bytes")))
                     "openLiveWallpaper" -> { openLiveWallpaper(); result.success(true) }
+                    "liveWallpaperPkg" -> result.success(
+                        android.app.WallpaperManager.getInstance(this).wallpaperInfo?.packageName
+                    )
+                    "clearLockWallpaper" -> {
+                        result.success(
+                            try {
+                                android.app.WallpaperManager.getInstance(this)
+                                    .clear(android.app.WallpaperManager.FLAG_LOCK)
+                                true
+                            } catch (e: Exception) { false }
+                        )
+                    }
                     else -> result.notImplemented()
                 }
             }

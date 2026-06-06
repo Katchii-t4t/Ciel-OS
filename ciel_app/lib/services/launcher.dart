@@ -22,6 +22,24 @@ class Launcher {
     }
   }
 
+  /// Pakkenamnet til det aktive LEVANDE bakgrunnet (null om statisk bilete).
+  static Future<String?> liveWallpaperPkg() async {
+    try {
+      return await _ch.invokeMethod<String>('liveWallpaperPkg');
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  /// Fjern det statiske LÅS-bakgrunnet → det levande system-bakgrunnet viser på lås.
+  static Future<void> clearLockWallpaper() async {
+    try {
+      await _ch.invokeMethod('clearLockWallpaper');
+    } on PlatformException {
+      // ignorer
+    }
+  }
+
   /// Opnar system-førehandsvisninga for det levande Ciel-bakgrunnet.
   static Future<void> openLiveWallpaper() async {
     try {

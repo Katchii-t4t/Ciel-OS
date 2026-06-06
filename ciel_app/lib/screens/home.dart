@@ -68,12 +68,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // Self-heal: set Ciel-orben som bakgrunn (heim + lås) éin gong, så låsskjermen
   // alltid har orben sjølv om noko nullstilte han.
-  static const _wpVer = 4; // auk for å tvinge re-set av wallpaper-designet
   Future<void> _ensureWallpaper() async {
-    final prefs = await SharedPreferences.getInstance();
-    if ((prefs.getInt('wp_ver') ?? 0) >= _wpVer) return;
-    if (!mounted) return;
     try {
+      // Rør ALDRI det levande Ciel-bakgrunnet (det orbiterer!). Set berre eit
+      // statisk fallback-bilete om det levande er tapt (t.d. etter app-reinstall).
+      final livePkg = await Launcher.liveWallpaperPkg();
+      if (livePkg != null && livePkg.contains('ciel_app')) {
+        // Levande Ciel er aktiv som system-bakgrunn → fjern evt. statisk lås-override
+        // så det LEVANDE (orbiterande) bakgrunnet viser på låsskjermen òg.
+        await Launcher.clearLockWallpaper();
+        return;
+      }
+      if (!mounted) return;
       final sz = MediaQuery.of(context).size;
       final dpr = MediaQuery.of(context).devicePixelRatio;
       final png = await renderOrbPng(
@@ -82,10 +88,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         color: _modeColor,
         girl: _girlPermanent || _girlMode,
       );
-      if (png != null) {
-        await Launcher.setLockWallpaper(png);
-        await prefs.setInt('wp_ver', _wpVer);
-      }
+      if (png != null) await Launcher.setLockWallpaper(png);
     } catch (_) {}
   }
 
