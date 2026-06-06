@@ -1,7 +1,39 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
+
+/// Renderar ein STILL-ramme av orben til PNG — for låsskjerm-bakgrunn o.l.
+/// (statisk, ingen animasjon/pulsing).
+Future<Uint8List?> renderOrbPng({
+  required int width,
+  required int height,
+  Color color = const Color(0xFFFFC850),
+  bool girl = false,
+  double brightness = 1.35,
+  double t = 0.7,
+}) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  final w = width.toDouble(), h = height.toDouble();
+  canvas.drawRect(Rect.fromLTWH(0, 0, w, h), Paint()..color = const Color(0xFF000000));
+  final orbD = w * 0.82;
+  canvas.save();
+  canvas.translate((w - orbD) / 2, (h - orbD) / 2);
+  _OrbPainter(
+    t: t,
+    girlMix: girl ? 1.0 : 0.0,
+    base: color,
+    model: _OrbModel(math.Random(42)),
+    transparentBg: true,
+    brightness: brightness,
+  ).paint(canvas, Size(orbD, orbD));
+  canvas.restore();
+  final img = await recorder.endRecording().toImage(width, height);
+  final data = await img.toByteData(format: ui.ImageByteFormat.png);
+  return data?.buffer.asUint8List();
+}
 
 /// Ciel-orben — port av ciel_orb_v3.html til Flutter CustomPainter.
 /// Krystallinsk kjerne, partikkelboble, 8 stråler. Gull er heim; girl mode

@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _overlayPerm = false;
   bool _lockEnabled = false;
   bool _girlPermanent = true; // vis girl mode alltid (kan slåast av i innstillingar)
+  bool _showGreeting = false;
 
   String _mode = 'ambient';
   bool _girlMode = false;
@@ -52,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _boot();
     _initOverlay();
+    _greet();
   }
 
   Future<void> _boot() async {
@@ -133,6 +135,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (mounted) setState(() => _answer += '\n\n[feil: $e]');
     }, onDone: () {
       if (mounted) setState(() => _busy = false);
+    });
+  }
+
+  // ── Velkomst-helsing (JARVIS-augneblinken etter opplåsing) ───────────────
+  String _greetingText() {
+    final h = DateTime.now().hour;
+    final part = h < 5
+        ? 'God natt'
+        : h < 12
+            ? 'God morgon'
+            : h < 18
+                ? 'God ettermiddag'
+                : 'God kveld';
+    return '$part, Dr. Katchi';
+  }
+
+  void _greet() {
+    if (!mounted) return;
+    setState(() => _showGreeting = true);
+    Future.delayed(const Duration(milliseconds: 4500), () {
+      if (mounted) setState(() => _showGreeting = false);
     });
   }
 
@@ -241,6 +264,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (state == AppLifecycleState.resumed) _greet(); // "God morgon, Dr. Katchi" etter opplåsing
     if (!_overlayPerm) return;
     try {
       if (state == AppLifecycleState.paused) {
@@ -346,6 +370,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ]),
           const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () async {
+              final dpr = MediaQuery.of(ctx).devicePixelRatio;
+              final s = MediaQuery.of(ctx).size;
+              final png = await renderOrbPng(
+                width: (s.width * dpr).round(),
+                height: (s.height * dpr).round(),
+                color: _modeColor,
+                girl: _girlPermanent || _girlMode,
+              );
+              if (png != null) {
+                final ok = await Launcher.setLockWallpaper(png);
+                _flash(ok ? 'Ciel sett som låsskjerm-bakgrunn 🌙' : 'Klarte ikkje setje låsskjerm');
+              }
+            },
+            icon: const Icon(Icons.wallpaper),
+            label: const Text('Sett Ciel-orb som låsskjerm'),
+          ),
+          const SizedBox(height: 8),
           FilledButton(
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
@@ -369,7 +412,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Column(children: [
+        child: Stack(children: [
+          Column(children: [
           // Diskret status (ikkje chrome — berre ein liten prikk)
           Padding(
             padding: const EdgeInsets.only(top: 8, right: 14),
@@ -452,6 +496,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       onPressed: _ask,
                     ),
             ]),
+          ),
+          ]),
+          // Velkomst-helsing — tonar inn etter opplåsing, så ut igjen
+          Positioned(
+            top: 64,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: Center(
+                child: AnimatedOpacity(
+                  opacity: _showGreeting ? 1 : 0,
+                  duration: const Duration(milliseconds: 900),
+                  child: Text(
+                    _greetingText(),
+                    style: TextStyle(
+                      color: _modeColor,
+                      fontSize: 20,
+                      letterSpacing: .5,
+                      shadows: const [Shadow(blurRadius: 14, color: Colors.black)],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ]),
       ),
