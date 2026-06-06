@@ -155,43 +155,48 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _onInk(List<List<Offset>> strokes) async {
     setState(() => _busy = true);
-    String? text;
+    List<String> cands = [];
     try {
-      text = await _hand.recognize(strokes);
+      cands = await _hand.recognizeCandidates(strokes);
     } catch (e) {
       _flash('Handskrift feila: $e');
     }
     if (!mounted) return;
-    if (text == null || text.isEmpty) {
+    if (cands.isEmpty) {
       setState(() => _busy = false);
       return;
     }
+    final text = cands.first;
     _flash('✍ $text');
 
-    // 1) App-namn → opne ekte app. Vis hjørne-orben FØR vi opnar (medan Ciel er
-    // i framgrunn), så foreground-service-overlayet overlever bakgrunnsfrysing.
+    // 1) App-namn → opne ekte app. Prøv ALLE tolkingar (handskrift er uskarp).
+    // Vis hjørne-orben FØR vi opnar, medan Ciel er i framgrunn.
     await _showCornerOrb();
-    final launched = await Launcher.launchApp(text);
-    if (launched != null) {
-      if (mounted) {
-        _flash('Opnar $launched');
-        setState(() => _busy = false);
+    for (final c in cands) {
+      final launched = await Launcher.launchApp(c);
+      if (launched != null) {
+        if (mounted) {
+          _flash('Opnar $launched');
+          setState(() => _busy = false);
+        }
+        return;
       }
-      return;
     }
-    // ikkje ein app → lukk hjørne-orben vi førehandsviste
+    // ingen app → lukk hjørne-orben vi førehandsviste
     try { await FlutterOverlayWindow.closeOverlay(); } catch (_) {}
 
     // 2) Scene-ord → konfigurert tilstand
-    final key = text.toLowerCase().trim();
-    if (_scenes.contains(key)) {
-      final mode = _sceneMode[key] ?? 'ambient';
-      await _api.command('set_mode', {'mode': mode});
-      if (mounted) {
-        setState(() { _mode = mode; _busy = false; });
-        _flash('Scene: $key');
+    for (final c in cands) {
+      final key = c.toLowerCase().trim();
+      if (_scenes.contains(key)) {
+        final mode = _sceneMode[key] ?? 'ambient';
+        await _api.command('set_mode', {'mode': mode});
+        if (mounted) {
+          setState(() { _mode = mode; _busy = false; });
+          _flash('Scene: $key');
+        }
+        return;
       }
-      return;
     }
 
     // 3) Elles → spørsmål til Ciel

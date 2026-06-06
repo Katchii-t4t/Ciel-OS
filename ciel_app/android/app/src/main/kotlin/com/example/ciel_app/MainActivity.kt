@@ -41,21 +41,26 @@ class MainActivity : FlutterFragmentActivity() {
         return launchableApps().map { it.loadLabel(pm).toString() }.distinct().sorted()
     }
 
+    // Normaliser: berre små bokstavar + tal (fjern mellomrom/teikn) — toler
+    // handskrift som "good notes" vs "GoodNotes".
+    private fun norm(s: String): String = s.lowercase().replace(Regex("[^a-z0-9]"), "")
+
     /** Finn beste app som matchar [query] på namn/pakke og opnar han. Returnerer etiketten. */
     private fun launchAppByName(query: String): String? {
-        val q = query.trim().lowercase()
-        if (q.isEmpty()) return null
+        val q = norm(query)
+        if (q.length < 2) return null
         val pm = packageManager
         var best: ResolveInfo? = null
         var bestScore = -1
         for (ri in launchableApps()) {
-            val label = ri.loadLabel(pm).toString().lowercase()
-            val pkg = ri.activityInfo.packageName.lowercase()
+            val label = norm(ri.loadLabel(pm).toString())
+            val pkg = norm(ri.activityInfo.packageName)
             val score = when {
                 label == q -> 100
-                label.startsWith(q) -> 80
-                label.contains(q) -> 60
-                pkg.contains(q) -> 40
+                label.startsWith(q) -> 85
+                q.startsWith(label) && label.length >= 4 -> 78
+                label.contains(q) -> 65
+                pkg.contains(q) -> 50
                 else -> -1
             }
             if (score > bestScore) { bestScore = score; best = ri }

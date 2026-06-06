@@ -50,13 +50,15 @@ class _LockGateState extends State<LockGate> {
   }
 
   Future<void> _onInk(List<List<Offset>> strokes) async {
-    final text = await _hand.recognize(strokes);
-    if (!mounted || text == null || text.isEmpty) return;
-    if (await _lock.checkPassphrase(text)) {
-      widget.onUnlocked();
-    } else if (mounted) {
-      setState(() => _status = 'Feil ord. Prøv igjen.');
+    final cands = await _hand.recognizeCandidates(strokes);
+    if (!mounted || cands.isEmpty) return;
+    for (final c in cands) {
+      if (await _lock.checkPassphrase(c)) {
+        widget.onUnlocked();
+        return;
+      }
     }
+    if (mounted) setState(() => _status = 'Feil ord. Prøv igjen.');
   }
 
   @override

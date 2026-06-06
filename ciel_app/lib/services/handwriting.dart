@@ -16,10 +16,10 @@ class Handwriting {
     _recognizer ??= DigitalInkRecognizer(languageCode: lang);
   }
 
-  /// Kjenner att tekst frå strok (liste av punkt-lister i widget-koordinatar).
-  Future<String?> recognize(List<List<Offset>> strokes) async {
+  /// Topp-tolkingar av strok (handskrift er uskarp — vi prøver fleire).
+  Future<List<String>> recognizeCandidates(List<List<Offset>> strokes, {int max = 6}) async {
     final valid = strokes.where((s) => s.isNotEmpty).toList();
-    if (valid.isEmpty) return null;
+    if (valid.isEmpty) return [];
     await _ensure();
 
     final ink = Ink();
@@ -34,7 +34,17 @@ class Handwriting {
     }).toList();
 
     final candidates = await _recognizer!.recognize(ink);
-    return candidates.isNotEmpty ? candidates.first.text.trim() : null;
+    return candidates
+        .take(max)
+        .map((c) => c.text.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+
+  /// Beste enkelt-tolking.
+  Future<String?> recognize(List<List<Offset>> strokes) async {
+    final c = await recognizeCandidates(strokes, max: 1);
+    return c.isEmpty ? null : c.first;
   }
 
   void dispose() => _recognizer?.close();
