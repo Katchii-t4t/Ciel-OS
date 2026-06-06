@@ -44,8 +44,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _boot() async {
     final prefs = await SharedPreferences.getInstance();
-    final url = prefs.getString('serverUrl') ?? _defaultUrl;
-    _api = CielApi(url);
+    final saved = prefs.getString('serverUrl');
+    // Auto-oppdag hjernen: prøv lagra/LAN-URL, fall så tilbake til localhost
+    // (fungerer over adb reverse / framtidig på-eining). Graceful degradation.
+    final candidates = <String>[
+      if (saved != null) saved,
+      _defaultUrl,
+      'http://localhost:8765',
+      'http://127.0.0.1:8765',
+    ];
+    String chosen = saved ?? _defaultUrl;
+    for (final c in candidates) {
+      if (await CielApi(c).ping()) { chosen = c; break; }
+    }
+    _api = CielApi(chosen);
+    await prefs.setString('serverUrl', chosen);
     await _refreshState();
     _listenEvents();
   }
