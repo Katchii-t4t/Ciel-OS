@@ -22,9 +22,31 @@ class MainActivity : FlutterFragmentActivity() {
                     "launchApp" -> result.success(launchAppByName(call.argument<String>("query") ?: ""))
                     "listApps" -> result.success(listAppLabels())
                     "setLockWallpaper" -> result.success(setLockWallpaper(call.argument<ByteArray>("bytes")))
+                    "openLiveWallpaper" -> { openLiveWallpaper(); result.success(true) }
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /** Opnar system-førehandsvisninga for å setje det levande Ciel-bakgrunnet. */
+    private fun openLiveWallpaper() {
+        try {
+            val intent = Intent(android.app.WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).apply {
+                putExtra(
+                    android.app.WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
+                    android.content.ComponentName(this@MainActivity, CielWallpaperService::class.java)
+                )
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                startActivity(
+                    Intent(android.app.WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            } catch (e2: Exception) {}
+        }
     }
 
     /** Set PNG-bytes som låsskjerm-bakgrunn (FLAG_LOCK). Samsung-UI ligg oppå. */

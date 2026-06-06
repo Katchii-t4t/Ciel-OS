@@ -386,7 +386,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               }
             },
             icon: const Icon(Icons.wallpaper),
-            label: const Text('Sett Ciel-orb som låsskjerm'),
+            label: const Text('Sett Ciel-orb som låsskjerm (stille)'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => Launcher.openLiveWallpaper(),
+            icon: const Icon(Icons.auto_awesome_motion),
+            label: const Text('Sett LEVANDE Ciel-bakgrunn (orbit)'),
           ),
           const SizedBox(height: 8),
           FilledButton(

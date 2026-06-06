@@ -22,6 +22,15 @@ class Launcher {
     }
   }
 
+  /// Opnar system-førehandsvisninga for det levande Ciel-bakgrunnet.
+  static Future<void> openLiveWallpaper() async {
+    try {
+      await _ch.invokeMethod('openLiveWallpaper');
+    } on PlatformException {
+      // ignorer
+    }
+  }
+
   static Future<List<String>> listApps() async {
     try {
       final res = await _ch.invokeMethod<List<dynamic>>('listApps');
