@@ -9,15 +9,10 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterFragmentActivity() {
     private val channelName = "ciel/launcher"
 
-    override fun onCreate(savedInstanceState: android.os.Bundle?) {
-        super.onCreate(savedInstanceState)
-        // Vis Ciel OVER låsskjermen. (Android tillèt ikkje å erstatte sjølve den
-        // sikre keyguarden — fingeravtrykk/PIN er framleis lag 1, jf. SPEC §5.)
-        if (android.os.Build.VERSION.SDK_INT >= 27) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-        }
-    }
+    // Merk: vi viser IKKJE Ciel over den sikre låsskjermen lenger. Android lèt deg
+    // ikkje opne appar over låsen, så showWhenLocked gav ein forvirrande "halvlåst"
+    // tilstand (låsskjermen spratt fram når du opna ein app). Ciel er heimskjermen
+    // ETTER du har låst opp normalt (fingeravtrykk/fjes = den ekte, sikre vakta).
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
