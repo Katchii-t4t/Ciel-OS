@@ -11,6 +11,7 @@ class CielOrb extends StatefulWidget {
   final bool girlMode;
   final double size;
   final bool transparentBg; // true = ingen svart fyll (for hjørne-overlay)
+  final double brightness;  // >1 = sterkare/meir synleg (for overlay)
 
   const CielOrb({
     super.key,
@@ -18,6 +19,7 @@ class CielOrb extends StatefulWidget {
     this.girlMode = false,
     this.size = 320,
     this.transparentBg = false,
+    this.brightness = 1.0,
   });
 
   @override
@@ -68,6 +70,7 @@ class _CielOrbState extends State<CielOrb> with SingleTickerProviderStateMixin {
             base: widget.modeColor,
             model: _model,
             transparentBg: widget.transparentBg,
+            brightness: widget.brightness,
           ),
         ),
       ),
@@ -129,7 +132,8 @@ class _OrbPainter extends CustomPainter {
   final Color base;
   final _OrbModel model;
   final bool transparentBg;
-  _OrbPainter({required this.t, required this.girlMix, required this.base, required this.model, this.transparentBg = false});
+  final double brightness;
+  _OrbPainter({required this.t, required this.girlMix, required this.base, required this.model, this.transparentBg = false, this.brightness = 1.0});
 
   // Trans-flagg-fargar
   static const List<double> _blue = [123, 205, 255];
@@ -186,8 +190,8 @@ class _OrbPainter extends CustomPainter {
     final auraR = 150 * k;
     final auraPaint = Paint()
       ..shader = ui.Gradient.radial(ctr, auraR, [
-        baseCol.withValues(alpha:.10 + .03 * math.sin(t * .5)),
-        baseCol.withValues(alpha:.04),
+        baseCol.withValues(alpha:((.10 + .03 * math.sin(t * .5)) * brightness).clamp(0.0, 1.0)),
+        baseCol.withValues(alpha:(.04 * brightness).clamp(0.0, 1.0)),
         baseCol.withValues(alpha:0.0),
       ], [0.0, 0.5, 1.0]);
     c.drawCircle(ctr, auraR, auraPaint);
@@ -200,7 +204,7 @@ class _OrbPainter extends CustomPainter {
       final r = p.r + 18 * math.sin(t * .4 + p.angle * 3);
       final pos = ctr + Offset(math.cos(p.angle) * r * k, math.sin(p.angle) * r * .78 * k);
       final op = p.opacity * (.4 + .6 * math.sin(t * p.opFreq + p.opPhase));
-      dot.color = _bandColor(p.band, math.max(0.0, op));
+      dot.color = _bandColor(p.band, math.max(0.0, op) * brightness);
       c.drawCircle(pos, p.size * k, dot);
     }
 
@@ -215,7 +219,7 @@ class _OrbPainter extends CustomPainter {
       final r = p.radiusBase + p.radiusNoise * math.sin(t * p.noiseFreq + p.noisePhase) + distort;
       final pos = ctr + Offset(math.cos(angle) * r * k, math.sin(angle) * r * .88 * k);
       final op = p.opacity * (.5 + .5 * math.sin(t * p.opFreq + p.opPhase));
-      dot.color = _bandColor(p.band, math.max(0.0, op));
+      dot.color = _bandColor(p.band, math.max(0.0, op) * brightness);
       c.drawCircle(pos, p.size * k, dot);
     }
 
@@ -226,7 +230,7 @@ class _OrbPainter extends CustomPainter {
       final pos = ctr +
           Offset(math.cos(p.angle) * (p.r + warp) * k, math.sin(p.angle) * (p.r + warp) * .9 * k);
       final op = p.opacity * (.4 + .6 * math.sin(t * p.opFreq + p.opPhase).abs());
-      dot.color = _bandColor(p.band, math.max(0.0, op));
+      dot.color = _bandColor(p.band, math.max(0.0, op) * brightness);
       c.drawCircle(pos, p.size * k, dot);
     }
 
@@ -240,14 +244,14 @@ class _OrbPainter extends CustomPainter {
       final a = rot + i / 8 * math.pi * 2;
       final third = ((((a % (math.pi * 2)) + math.pi * 2) % (math.pi * 2)) / (math.pi * 2 / 3)).floor();
       _drawRay(c, ctr, a, lens[i] * breath * k, wids[i] * k, _bandColor(third, 1),
-          (.5 + .12 * math.sin(t * .6 + i)) * breath);
+          (.5 + .12 * math.sin(t * .6 + i)) * breath * brightness);
     }
     // 14 mindre stråler
     for (int i = 0; i < 14; i++) {
       final a = rot * .6 + i / 14 * math.pi * 2 + .22;
       final third = ((((a % (math.pi * 2)) + math.pi * 2) % (math.pi * 2)) / (math.pi * 2 / 3)).floor();
       _drawRay(c, ctr, a, (26 + 9 * math.sin(t * .9 + i)) * breath * k, .28 * k,
-          _bandColor(third, 1), .10 + .05 * math.sin(t + i));
+          _bandColor(third, 1), (.10 + .05 * math.sin(t + i)) * brightness);
     }
 
     // Ringar

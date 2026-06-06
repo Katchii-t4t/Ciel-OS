@@ -54,12 +54,20 @@ class _CielOverlayApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: GestureDetector(
-        // Trykk på hjørne-orben → be hovudappen kome fram igjen
+        // Trykk kvar som helst på hjørne-orben → hovudappen kjem fram igjen
+        behavior: HitTestBehavior.opaque,
         onTap: () => FlutterOverlayWindow.shareData('open'),
-        child: Container(
-          color: Colors.transparent,
-          alignment: Alignment.center,
-          child: const CielOrb(size: 120, transparentBg: true),
+        child: Center(
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(colors: [
+                Colors.black.withValues(alpha: .55),
+                Colors.black.withValues(alpha: .0),
+              ]),
+            ),
+            child: const CielOrb(size: 165, transparentBg: true, brightness: 2.1),
+          ),
         ),
       ),
     );
