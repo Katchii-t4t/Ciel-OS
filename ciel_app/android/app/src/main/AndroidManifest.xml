@@ -4,6 +4,8 @@
     <!-- Ciel-på-sida: teikne orb-overlay oppi andre appar -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <!-- Ciel velkomstport: fingeravtrykk / fjes -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <application
         android:label="Ciel"
         android:name="${applicationName}"

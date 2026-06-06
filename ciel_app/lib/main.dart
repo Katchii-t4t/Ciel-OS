@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'screens/home.dart';
+import 'screens/lock_gate.dart';
+import 'services/lock.dart';
 import 'widgets/orb.dart';
 
 void main() {
@@ -34,8 +36,47 @@ class CielApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const CielRoot(),
     );
+  }
+}
+
+/// Avgjer om velkomstporten skal visast (berre om lås er på OG vi ikkje låser ut).
+class CielRoot extends StatefulWidget {
+  const CielRoot({super.key});
+  @override
+  State<CielRoot> createState() => _CielRootState();
+}
+
+class _CielRootState extends State<CielRoot> {
+  final _lock = Lock();
+  bool _unlocked = false;
+  bool? _enabled;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    var en = await _lock.isEnabled();
+    if (en) {
+      // Tryggleiksventil: ikkje lås ut om verken pennord eller biometri finst
+      final hasPass = await _lock.hasPassphrase();
+      final bio = await _lock.available();
+      if (!hasPass && bio.isEmpty) en = false;
+    }
+    if (mounted) setState(() => _enabled = en);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_enabled == null) {
+      return const Scaffold(backgroundColor: Colors.black, body: SizedBox.shrink());
+    }
+    if (!_enabled! || _unlocked) return const HomeScreen();
+    return LockGate(onUnlocked: () => setState(() => _unlocked = true));
   }
 }
 

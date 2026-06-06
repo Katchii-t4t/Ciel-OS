@@ -5,6 +5,7 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import '../services/ciel_api.dart';
 import '../services/launcher.dart';
 import '../services/handwriting.dart';
+import '../services/lock.dart';
 import '../widgets/orb.dart';
 import '../widgets/ink_layer.dart';
 
@@ -29,7 +30,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _input = TextEditingController();
   final _answerScroll = ScrollController();
   final Handwriting _hand = Handwriting();
+  final Lock _lock = Lock();
   bool _overlayPerm = false;
+  bool _lockEnabled = false;
 
   String _mode = 'ambient';
   bool _girlMode = false;
@@ -52,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _boot() async {
     final prefs = await SharedPreferences.getInstance();
+    _lockEnabled = await _lock.isEnabled();
     final saved = prefs.getString('serverUrl');
     // Auto-oppdag hjernen: prøv lagra/LAN-URL, fall så tilbake til localhost
     // (fungerer over adb reverse / framtidig på-eining). Graceful degradation.
@@ -256,6 +260,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // ── Innstillingar (lang-trykk på orben) ──────────────────────────────────
   void _openSettings() {
     final urlCtrl = TextEditingController(text: _api.baseUrl);
+    final passCtrl = TextEditingController();
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF0A0A0F),
@@ -293,6 +298,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               if (mounted) setState(() => _girlMode = v);
             },
           ),
+          const Divider(color: Colors.white12, height: 24),
+          StatefulBuilder(
+            builder: (c, setSheet) => SwitchListTile(
+              title: const Text('Lås Ciel (velkomstport)', style: TextStyle(color: Colors.white)),
+              subtitle: const Text('opplevingslag — ikkje einings-tryggleik',
+                  style: TextStyle(color: Colors.white38, fontSize: 11)),
+              value: _lockEnabled,
+              onChanged: (v) async {
+                await _lock.setEnabled(v);
+                setSheet(() {});
+                setState(() => _lockEnabled = v);
+              },
+            ),
+          ),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: passCtrl,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                    labelText: 'Set pennord', labelStyle: TextStyle(color: Colors.white54)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () async {
+                final w = passCtrl.text.trim();
+                if (w.isNotEmpty) {
+                  await _lock.setPassphrase(w);
+                  passCtrl.clear();
+                  _flash('Pennord lagra 🤫');
+                }
+              },
+              child: const Text('Lagre'),
+            ),
+          ]),
+          const SizedBox(height: 8),
           FilledButton(
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
