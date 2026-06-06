@@ -2,7 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/ciel_api.dart';
+import '../services/launcher.dart';
+import '../services/handwriting.dart';
 import '../widgets/orb.dart';
+import '../widgets/ink_layer.dart';
 
 const _defaultUrl = 'http://192.168.10.194:8765';
 
@@ -24,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   CielApi _api = CielApi(_defaultUrl);
   final _input = TextEditingController();
   final _answerScroll = ScrollController();
+  final Handwriting _hand = Handwriting();
 
   String _mode = 'ambient';
   bool _girlMode = false;
@@ -122,12 +126,73 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // ── S Pen: skriv på orben → handling (Module D) ──────────────────────────
+  void _flash(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      duration: const Duration(seconds: 2),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: Colors.white.withValues(alpha: .08),
+    ));
+  }
+
+  // v1-scener: eitt ord → ein konfigurert tilstand (utvidast seinare)
+  static const _scenes = {'lsb', 'forelesing', 'studie', 'sjakk'};
+  static const _sceneMode = {
+    'lsb': 'lecture', 'forelesing': 'lecture', 'studie': 'solo', 'sjakk': 'ambient',
+  };
+
+  Future<void> _onInk(List<List<Offset>> strokes) async {
+    setState(() => _busy = true);
+    String? text;
+    try {
+      text = await _hand.recognize(strokes);
+    } catch (e) {
+      _flash('Handskrift feila: $e');
+    }
+    if (!mounted) return;
+    if (text == null || text.isEmpty) {
+      setState(() => _busy = false);
+      return;
+    }
+    _flash('✍ $text');
+
+    // 1) App-namn → opne ekte app
+    final launched = await Launcher.launchApp(text);
+    if (launched != null) {
+      if (mounted) {
+        _flash('Opnar $launched');
+        setState(() => _busy = false);
+      }
+      return;
+    }
+
+    // 2) Scene-ord → konfigurert tilstand
+    final key = text.toLowerCase().trim();
+    if (_scenes.contains(key)) {
+      final mode = _sceneMode[key] ?? 'ambient';
+      await _api.command('set_mode', {'mode': mode});
+      if (mounted) {
+        setState(() { _mode = mode; _busy = false; });
+        _flash('Scene: $key');
+      }
+      return;
+    }
+
+    // 3) Elles → spørsmål til Ciel
+    setState(() => _busy = false);
+    _input.text = text;
+    _ask();
+  }
+
   @override
   void dispose() {
     _events?.cancel();
     _askSub?.cancel();
     _input.dispose();
     _answerScroll.dispose();
+    _hand.dispose();
     super.dispose();
   }
 
@@ -210,10 +275,14 @@ class _HomeScreenState extends State<HomeScreen> {
               child: GestureDetector(
                 onTap: () => FocusScope.of(context).requestFocus(FocusNode()),
                 onLongPress: _openSettings,
-                child: CielOrb(
-                  modeColor: _modeColor,
-                  girlMode: _girlMode,
-                  size: orbSize,
+                child: InkLayer(
+                  color: _modeColor,
+                  onComplete: _onInk,
+                  child: CielOrb(
+                    modeColor: _modeColor,
+                    girlMode: _girlMode,
+                    size: orbSize,
+                  ),
                 ),
               ),
             ),

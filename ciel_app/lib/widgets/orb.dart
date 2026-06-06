@@ -134,7 +134,7 @@ class _OrbPainter extends CustomPainter {
 
   double _lerp(double a, double b, double x) => a + (b - a) * x;
 
-  List<double> _baseRgb() => [base.red.toDouble(), base.green.toDouble(), base.blue.toDouble()];
+  List<double> _baseRgb() => [base.r * 255, base.g * 255, base.b * 255];
 
   /// Farge for ein partikkel: blandar frå modus-fargen mot band-fargen med girlMix.
   Color _bandColor(int band, double alpha) {
