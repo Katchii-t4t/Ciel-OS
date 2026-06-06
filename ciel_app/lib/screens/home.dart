@@ -90,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _girlPermanent = prefs.getBool('girl_permanent') ?? true;
     _voiceOn = prefs.getBool('voice_on') ?? true;
     await _voice.init();
+    if (_voiceOn) _voice.speak(_greetingText()); // talt velkomst ved oppstart
     final saved = prefs.getString('serverUrl');
     // Auto-oppdag hjernen: prøv lagra/LAN-URL, fall så tilbake til localhost
     // (fungerer over adb reverse / framtidig på-eining). Graceful degradation.
