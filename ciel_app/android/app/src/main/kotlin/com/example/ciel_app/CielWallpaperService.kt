@@ -40,7 +40,7 @@ class CielWallpaperService : WallpaperService() {
         private val gold = intArrayOf(255, 200, 80)
         private val twoPi = (PI * 2).toFloat()
 
-        private val n = 200
+        private val n = 320
         private val ang = FloatArray(n)
         private val rad = FloatArray(n)
         private val spd = FloatArray(n)
@@ -55,11 +55,13 @@ class CielWallpaperService : WallpaperService() {
             val r = Random(42)
             for (i in 0 until n) {
                 ang[i] = r.nextFloat() * twoPi
-                rad[i] = 0.30f + r.nextFloat() * 0.62f
-                spd[i] = 0.05f + r.nextFloat() * 0.22f   // alle same veg = solsystem-sirkulering
-                sz[i] = 1.8f + r.nextFloat() * 3.6f
+                val rr = 0.20f + r.nextFloat() * 1.65f          // strekk heilt ut til kantane
+                rad[i] = rr
+                val edge = 1f - ((rr - 0.20f) / 1.65f) * 0.40f  // ytre litt mindre/dimmare (djupn)
+                spd[i] = (0.05f + r.nextFloat() * 0.22f) / (0.6f + rr) // ytre orbiterer seinare (Kepler)
+                sz[i] = (2.0f + r.nextFloat() * 3.6f) * edge
                 band[i] = i % 3
-                opBase[i] = 0.42f + r.nextFloat() * 0.50f
+                opBase[i] = (0.55f + r.nextFloat() * 0.42f) * edge
                 opFreq[i] = 0.3f + r.nextFloat() * 1.2f
                 opPhase[i] = r.nextFloat() * twoPi
             }
@@ -118,18 +120,18 @@ class CielWallpaperService : WallpaperService() {
             c.drawColor(Color.BLACK)
             val cx = w / 2f
             val cy = h / 2f
-            val maxR = Math.min(w, h) * 0.42f
+            val maxR = Math.min(w, h) * 0.46f
             val girl = girlMode()
 
-            // Mjuk aura for djupn
+            // Mjuk aura for djupn (større glød mot kantane)
             val auraCol = if (!girl) gold else pink
             paint.style = Paint.Style.FILL
             paint.shader = RadialGradient(
-                cx, cy, maxR * 1.2f,
-                intArrayOf(Color.argb(40, auraCol[0], auraCol[1], auraCol[2]), Color.argb(0, 0, 0, 0)),
+                cx, cy, maxR * 1.7f,
+                intArrayOf(Color.argb(58, auraCol[0], auraCol[1], auraCol[2]), Color.argb(0, 0, 0, 0)),
                 floatArrayOf(0f, 1f), Shader.TileMode.CLAMP
             )
-            c.drawCircle(cx, cy, maxR * 1.2f, paint)
+            c.drawCircle(cx, cy, maxR * 1.7f, paint)
             paint.shader = null
 
             for (i in 0 until n) {
@@ -163,23 +165,23 @@ class CielWallpaperService : WallpaperService() {
             }
             paint.shader = null
 
-            // Kjerne — alltid kvit-lys
-            val coreR = maxR * 0.12f
+            // Kjerne — alltid kvit-lys (lysare)
+            val coreR = maxR * 0.15f
             val cc = if (!girl) gold else white
             paint.style = Paint.Style.FILL
             paint.shader = RadialGradient(
                 cx, cy, coreR,
                 intArrayOf(
                     Color.argb(255, 255, 255, 255),
-                    Color.argb(210, cc[0], cc[1], cc[2]),
+                    Color.argb(235, cc[0], cc[1], cc[2]),
                     Color.argb(0, 0, 0, 0)
                 ),
-                floatArrayOf(0f, 0.35f, 1f), Shader.TileMode.CLAMP
+                floatArrayOf(0f, 0.38f, 1f), Shader.TileMode.CLAMP
             )
             c.drawCircle(cx, cy, coreR, paint)
             paint.shader = null
             paint.color = Color.WHITE
-            c.drawCircle(cx, cy, 3.2f, paint)
+            c.drawCircle(cx, cy, 4.5f, paint)
         }
     }
 }
