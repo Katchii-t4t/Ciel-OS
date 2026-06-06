@@ -33,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final Lock _lock = Lock();
   bool _overlayPerm = false;
   bool _lockEnabled = false;
+  bool _girlPermanent = true; // vis girl mode alltid (kan slåast av i innstillingar)
 
   String _mode = 'ambient';
   bool _girlMode = false;
@@ -56,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _boot() async {
     final prefs = await SharedPreferences.getInstance();
     _lockEnabled = await _lock.isEnabled();
+    _girlPermanent = prefs.getBool('girl_permanent') ?? true;
     final saved = prefs.getString('serverUrl');
     // Auto-oppdag hjernen: prøv lagra/LAN-URL, fall så tilbake til localhost
     // (fungerer over adb reverse / framtidig på-eining). Graceful degradation.
@@ -291,11 +293,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ]),
           const SizedBox(height: 8),
           SwitchListTile(
-            title: const Text('Girl mode ♀', style: TextStyle(color: Colors.white)),
-            value: _girlMode,
+            title: const Text('Girl mode ♀ (alltid på)', style: TextStyle(color: Colors.white)),
+            subtitle: const Text('trans-flagg som standard — av = gull + auto etter tema',
+                style: TextStyle(color: Colors.white38, fontSize: 11)),
+            value: _girlPermanent,
             onChanged: (v) async {
-              await _api.command('set_girl_mode', {'on': v});
-              if (mounted) setState(() => _girlMode = v);
+              final p = await SharedPreferences.getInstance();
+              await p.setBool('girl_permanent', v);
+              if (mounted) setState(() => _girlPermanent = v);
             },
           ),
           const Divider(color: Colors.white12, height: 24),
@@ -380,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   onComplete: _onInk,
                   child: CielOrb(
                     modeColor: _modeColor,
-                    girlMode: _girlMode,
+                    girlMode: _girlPermanent || _girlMode,
                     size: orbSize,
                   ),
                 ),
