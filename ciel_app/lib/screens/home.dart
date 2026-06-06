@@ -386,6 +386,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: CielOrb(
                     modeColor: _modeColor,
                     girlMode: _girlPermanent || _girlMode,
+                    brightness: (_girlPermanent || _girlMode) ? 1.45 : 1.0,
                     size: orbSize,
                   ),
                 ),
