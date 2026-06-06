@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import '../services/ciel_api.dart';
 import '../services/launcher.dart';
 import '../services/handwriting.dart';
@@ -23,11 +24,12 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   CielApi _api = CielApi(_defaultUrl);
   final _input = TextEditingController();
   final _answerScroll = ScrollController();
   final Handwriting _hand = Handwriting();
+  bool _overlayPerm = false;
 
   String _mode = 'ambient';
   bool _girlMode = false;
@@ -43,7 +45,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _boot();
+    _initOverlay();
   }
 
   Future<void> _boot() async {
@@ -158,7 +162,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     _flash('✍ $text');
 
-    // 1) App-namn → opne ekte app
+    // 1) App-namn → opne ekte app. Vis hjørne-orben FØR vi opnar (medan Ciel er
+    // i framgrunn), så foreground-service-overlayet overlever bakgrunnsfrysing.
+    await _showCornerOrb();
     final launched = await Launcher.launchApp(text);
     if (launched != null) {
       if (mounted) {
@@ -167,6 +173,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       return;
     }
+    // ikkje ein app → lukk hjørne-orben vi førehandsviste
+    try { await FlutterOverlayWindow.closeOverlay(); } catch (_) {}
 
     // 2) Scene-ord → konfigurert tilstand
     final key = text.toLowerCase().trim();
@@ -186,8 +194,57 @@ class _HomeScreenState extends State<HomeScreen> {
     _ask();
   }
 
+  // ── Ciel-på-sida: hjørne-overlay oppi andre appar (Module D) ──────────────
+  Future<void> _initOverlay() async {
+    try {
+      _overlayPerm = await FlutterOverlayWindow.isPermissionGranted();
+      if (!_overlayPerm) {
+        _overlayPerm = await FlutterOverlayWindow.requestPermission() ?? false;
+      }
+      FlutterOverlayWindow.overlayListener.listen((data) async {
+        if (data == 'open') {
+          await FlutterOverlayWindow.closeOverlay();
+          await Launcher.launchApp('Ciel'); // hent hovudappen fram igjen
+        }
+      });
+    } catch (_) {}
+  }
+
+  // Vis hjørne-orben (foreground-service-overlay). Må kallast medan Ciel er i
+  // framgrunn — då overlever overlayet at Samsung frys hovudprosessen.
+  Future<void> _showCornerOrb() async {
+    if (!_overlayPerm) return;
+    try {
+      if (!await FlutterOverlayWindow.isActive()) {
+        await FlutterOverlayWindow.showOverlay(
+          height: 360,
+          width: 360,
+          alignment: OverlayAlignment.topRight,
+          flag: OverlayFlag.defaultFlag,
+          enableDrag: true,
+          overlayTitle: 'Ciel',
+        );
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (!_overlayPerm) return;
+    try {
+      if (state == AppLifecycleState.paused) {
+        await _showCornerOrb(); // best-effort (kan vere fryst på Samsung)
+      } else if (state == AppLifecycleState.resumed) {
+        if (await FlutterOverlayWindow.isActive()) {
+          await FlutterOverlayWindow.closeOverlay();
+        }
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _events?.cancel();
     _askSub?.cancel();
     _input.dispose();

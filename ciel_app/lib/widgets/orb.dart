@@ -10,12 +10,14 @@ class CielOrb extends StatefulWidget {
   final Color modeColor; // gjeldande modus-farge (gull som standard)
   final bool girlMode;
   final double size;
+  final bool transparentBg; // true = ingen svart fyll (for hjørne-overlay)
 
   const CielOrb({
     super.key,
     this.modeColor = const Color(0xFFFFC850), // ~ [255,200,80]
     this.girlMode = false,
     this.size = 320,
+    this.transparentBg = false,
   });
 
   @override
@@ -65,6 +67,7 @@ class _CielOrbState extends State<CielOrb> with SingleTickerProviderStateMixin {
             girlMix: _girlMix,
             base: widget.modeColor,
             model: _model,
+            transparentBg: widget.transparentBg,
           ),
         ),
       ),
@@ -125,7 +128,8 @@ class _OrbPainter extends CustomPainter {
   final double t, girlMix;
   final Color base;
   final _OrbModel model;
-  _OrbPainter({required this.t, required this.girlMix, required this.base, required this.model});
+  final bool transparentBg;
+  _OrbPainter({required this.t, required this.girlMix, required this.base, required this.model, this.transparentBg = false});
 
   // Trans-flagg-fargar
   static const List<double> _blue = [123, 205, 255];
@@ -173,8 +177,10 @@ class _OrbPainter extends CustomPainter {
     final b = _baseRgb();
     final baseCol = Color.fromRGBO(b[0].round(), b[1].round(), b[2].round(), 1);
 
-    // Svart bakgrunn (AMOLED off)
-    c.drawRect(Offset.zero & size, Paint()..color = Colors.black);
+    // Svart bakgrunn (AMOLED off) — hopp over for gjennomsiktig hjørne-overlay
+    if (!transparentBg) {
+      c.drawRect(Offset.zero & size, Paint()..color = Colors.black);
+    }
 
     // Aura
     final auraR = 150 * k;
