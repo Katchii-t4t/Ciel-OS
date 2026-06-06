@@ -1,8 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Ciel-klienten snakkar med PC-hjernen over LAN/Tailscale -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="ciel_app"
+        android:label="Ciel"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
