@@ -7,6 +7,7 @@ import '../services/ciel_api.dart';
 import '../services/launcher.dart';
 import '../services/handwriting.dart';
 import '../services/lock.dart';
+import '../services/voice.dart';
 import '../widgets/orb.dart';
 import '../widgets/ink_layer.dart';
 
@@ -32,10 +33,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _answerScroll = ScrollController();
   final Handwriting _hand = Handwriting();
   final Lock _lock = Lock();
+  final Voice _voice = Voice();
   bool _overlayPerm = false;
   bool _lockEnabled = false;
   bool _girlPermanent = true; // vis girl mode alltid (kan slåast av i innstillingar)
   bool _showGreeting = false;
+  bool _voiceOn = true; // les svar høgt
 
   String _mode = 'ambient';
   bool _girlMode = false;
@@ -85,6 +88,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     _lockEnabled = await _lock.isEnabled();
     _girlPermanent = prefs.getBool('girl_permanent') ?? true;
+    _voiceOn = prefs.getBool('voice_on') ?? true;
+    await _voice.init();
     final saved = prefs.getString('serverUrl');
     // Auto-oppdag hjernen: prøv lagra/LAN-URL, fall så tilbake til localhost
     // (fungerer over adb reverse / framtidig på-eining). Graceful degradation.
@@ -151,6 +156,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _answer = '';
     });
     _input.clear();
+    _voice.stop(); // stopp evt. tidlegare tale
     _askSub = _api.askStream(q, deep: _deep).listen((tok) {
       if (!mounted) return;
       setState(() => _answer += tok);
@@ -160,6 +166,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (mounted) setState(() => _answer += '\n\n[feil: $e]');
     }, onDone: () {
       if (mounted) setState(() => _busy = false);
+      if (_voiceOn && _answer.trim().isNotEmpty) _voice.speak(_answer); // Ciel les svaret høgt
     });
   }
 
@@ -316,6 +323,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _input.dispose();
     _answerScroll.dispose();
     _hand.dispose();
+    _voice.stop();
     super.dispose();
   }
 
@@ -361,6 +369,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               final p = await SharedPreferences.getInstance();
               await p.setBool('girl_permanent', v);
               if (mounted) setState(() => _girlPermanent = v);
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Stemme — les svar høgt', style: TextStyle(color: Colors.white)),
+            value: _voiceOn,
+            onChanged: (v) async {
+              final p = await SharedPreferences.getInstance();
+              await p.setBool('voice_on', v);
+              if (!v) _voice.stop();
+              if (mounted) setState(() => _voiceOn = v);
             },
           ),
           const Divider(color: Colors.white12, height: 24),
