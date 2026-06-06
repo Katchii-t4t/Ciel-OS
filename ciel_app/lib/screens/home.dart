@@ -55,6 +55,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _boot();
     _initOverlay();
     _greet();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureWallpaper());
+  }
+
+  // Self-heal: set Ciel-orben som bakgrunn (heim + lås) éin gong, så låsskjermen
+  // alltid har orben sjølv om noko nullstilte han.
+  Future<void> _ensureWallpaper() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('wp_init') ?? false) return;
+    if (!mounted) return;
+    try {
+      final sz = MediaQuery.of(context).size;
+      final dpr = MediaQuery.of(context).devicePixelRatio;
+      final png = await renderOrbPng(
+        width: (sz.width * dpr).round(),
+        height: (sz.height * dpr).round(),
+        color: _modeColor,
+        girl: _girlPermanent || _girlMode,
+      );
+      if (png != null) {
+        await Launcher.setLockWallpaper(png);
+        await prefs.setBool('wp_init', true);
+      }
+    } catch (_) {}
   }
 
   Future<void> _boot() async {
@@ -393,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               }
             },
             icon: const Icon(Icons.wallpaper),
-            label: const Text('Sett Ciel-orb som låsskjerm (stille)'),
+            label: const Text('Sett Ciel-orb (heim + lås, stille)'),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(

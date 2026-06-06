@@ -49,13 +49,16 @@ class MainActivity : FlutterFragmentActivity() {
         }
     }
 
-    /** Set PNG-bytes som låsskjerm-bakgrunn (FLAG_LOCK). Samsung-UI ligg oppå. */
+    /** Set PNG-bytes som bakgrunn på BÅDE heim og lås (stille). Samsung-UI ligg oppå. */
     private fun setLockWallpaper(bytes: ByteArray?): Boolean {
         if (bytes == null) return false
         return try {
             val bmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return false
-            android.app.WallpaperManager.getInstance(this)
-                .setBitmap(bmp, null, true, android.app.WallpaperManager.FLAG_LOCK)
+            val wm = android.app.WallpaperManager.getInstance(this)
+            wm.setBitmap(
+                bmp, null, true,
+                android.app.WallpaperManager.FLAG_SYSTEM or android.app.WallpaperManager.FLAG_LOCK
+            )
             true
         } catch (e: Exception) {
             false
