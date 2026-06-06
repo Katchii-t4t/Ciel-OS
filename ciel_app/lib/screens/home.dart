@@ -190,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final screen = MediaQuery.of(context).size;
-    final orbSize = screen.shortestSide * .62;
+    final orbSize = screen.shortestSide * .82;
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
