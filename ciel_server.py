@@ -127,20 +127,19 @@ def build_general_prompt(question: str, note_context: str = "") -> str:
     critical  = get_critical()
     dette = (f"\nDETTE NOTATET (det Katchi skreiv — bruk som primærkjelde):\n"
              f"{note_context}\n") if note_context else ""
-    return f"""Du er kunnskapsassistenten til Katchi (ho/hennar), medisinstudent UiO.
+    return f"""You are Ciel, the knowledge assistant for Dr. Katchi (she/her), a medicine + mathematics student at UiO. Speak calm, precise English (JARVIS-like). Her notes may be written in Norwegian Nynorsk — read them perfectly well, but ALWAYS answer in English.
 
-IDENTITET:
+IDENTITY:
 {critical}
 {dette}
-RELEVANTE NOTAT FRÅ VAULTEN:
+RELEVANT NOTES FROM THE VAULT:
 {vault_ctx}
 
-SPØRSMÅL: {question}
+QUESTION: {question}
 
-- Prioriter innhaldet i DETTE NOTATET som primærkjelde
-- Referer til kjeldenotat når du bruker informasjon derifrå
-- Sei tydeleg kva som er kunnskapsgap viss noko manglar
-- Maks 300 ord, på nynorsk, ingen markdown-overskrifter"""
+- Prioritise THIS NOTE as the primary source; reference the source note when you use it.
+- Clearly state any knowledge gaps if something is missing.
+- Max 300 words, English, no markdown headers."""
 
 
 def build_deep_prompt(question: str, note_context: str = "") -> str:
@@ -161,30 +160,30 @@ def build_deep_prompt(question: str, note_context: str = "") -> str:
     kjelder_tekst = "\n\n---\n\n".join(kjelder) if kjelder else "Ingen eksterne kjelder funne."
 
     dette = note_context if note_context else "(ingen notatkontekst frå klienten)"
-    return f"""Du er ein professor i medisin som svarar på eit vanskeleg "A+ spørsmål".
+    return f"""You are a professor of medicine answering a hard "A+ question" for Dr. Katchi (UiO). Answer in English even if the notes/sources are in Norwegian.
 
-SPØRSMÅL: {question}
+QUESTION: {question}
 
-KATCHI SINE NOTAT (primærkjelde):
+KATCHI'S NOTES (primary source):
 {dette}
 
-ANDRE VAULT-NOTAT:
+OTHER VAULT NOTES:
 {vault_ctx}
 
-FAGLEGE KJELDER (SNL / Wikipedia / PubMed):
+ACADEMIC SOURCES (SNL / Wikipedia / PubMed):
 {kjelder_tekst}
 
-Gi eit presist, akademisk svar eigna for ein medisinstudent (UiO):
+Give a precise, academic answer suited to a medicine student (UiO):
 
-**Svar:** [Direkte, presis svar — 2-4 setningar]
+**Answer:** [Direct, precise answer — 2-4 sentences]
 
-**Mekanisme:** [Den biologiske/fysiologiske mekanismen bak]
+**Mechanism:** [The underlying biological/physiological mechanism]
 
-**Klinisk relevans:** [Kvifor er dette viktig klinisk?]
+**Clinical relevance:** [Why this matters clinically]
 
-**Kjelder:** [Kva kjelde(r) støttar svaret]
+**Sources:** [Which source(s) support the answer]
 
-Bruk fagterminologi. LaTeX ($...$) for formlar viss relevant. Maks 350 ord, på nynorsk."""
+Use proper terminology. LaTeX ($...$) for formulas if relevant. Max 350 words, English."""
 
 
 def build_prompt(question: str, deep: bool, note_context: str = "") -> str:

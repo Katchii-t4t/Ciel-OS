@@ -68,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // Self-heal: set Ciel-orben som bakgrunn (heim + lås) éin gong, så låsskjermen
   // alltid har orben sjølv om noko nullstilte han.
-  static const _wpVer = 2; // auk for å tvinge re-set av wallpaper-designet
+  static const _wpVer = 4; // auk for å tvinge re-set av wallpaper-designet
   Future<void> _ensureWallpaper() async {
     final prefs = await SharedPreferences.getInstance();
     if ((prefs.getInt('wp_ver') ?? 0) >= _wpVer) return;
@@ -211,12 +211,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _greetingText() {
     final h = DateTime.now().hour;
     final part = h < 5
-        ? 'God natt'
+        ? 'Good evening'
         : h < 12
-            ? 'God morgon'
+            ? 'Good morning'
             : h < 18
-                ? 'God ettermiddag'
-                : 'God kveld';
+                ? 'Good afternoon'
+                : 'Good evening';
     return '$part, Dr. Katchi';
   }
 

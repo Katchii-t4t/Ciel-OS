@@ -1,14 +1,14 @@
 import 'package:flutter_tts/flutter_tts.dart';
 
-/// Ciel si stemme (lokal TTS). Les svar høgt — roleg, deliberat tempo.
-/// Nynorsk-stemme (nb-NO) så uttalen av svara blir rett. ElevenLabs kjem i 3.2.
+/// Ciel si stemme (lokal TTS). Engelsk (britisk) — JARVIS-aktig, roleg tempo.
+/// Ciel snakkar engelsk sjølv om notata dine er på nynorsk. ElevenLabs kjem i 3.2.
 class Voice {
   final FlutterTts _tts = FlutterTts();
   bool ready = false;
 
   Future<void> init() async {
     try {
-      await _tts.setLanguage('nb-NO');
+      await _tts.setLanguage('en-GB'); // britisk engelsk — Ciel sin persona
       await _tts.setSpeechRate(0.45); // under normalt tempo — "never hurried"
       await _tts.setPitch(1.0);
       await _tts.awaitSpeakCompletion(true);

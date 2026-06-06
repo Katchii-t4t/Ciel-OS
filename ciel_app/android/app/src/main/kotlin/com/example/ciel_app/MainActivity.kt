@@ -55,10 +55,9 @@ class MainActivity : FlutterFragmentActivity() {
         return try {
             val bmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return false
             val wm = android.app.WallpaperManager.getInstance(this)
-            wm.setBitmap(
-                bmp, null, true,
-                android.app.WallpaperManager.FLAG_SYSTEM or android.app.WallpaperManager.FLAG_LOCK
-            )
+            // Sett kvar for seg — Samsung er finurleg med kombinert flagg.
+            wm.setBitmap(bmp, null, true, android.app.WallpaperManager.FLAG_SYSTEM)
+            wm.setBitmap(bmp, null, true, android.app.WallpaperManager.FLAG_LOCK)
             true
         } catch (e: Exception) {
             false
