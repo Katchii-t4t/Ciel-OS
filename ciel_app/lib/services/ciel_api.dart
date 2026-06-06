@@ -44,6 +44,20 @@ class CielApi {
     return jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>;
   }
 
+  /// Send WAV-lyd → NB-Whisper på PC → transkribert tekst.
+  Future<String?> transcribe(List<int> wavBytes) async {
+    try {
+      final req = http.MultipartRequest('POST', _u('/api/transcribe'));
+      req.files.add(http.MultipartFile.fromBytes('file', wavBytes, filename: 'rec.wav'));
+      final streamed = await req.send().timeout(const Duration(seconds: 120));
+      final body = await streamed.stream.bytesToString();
+      if (streamed.statusCode != 200) return null;
+      return jsonDecode(body)['text'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<bool> ping() async {
     try {
       final r = await http.get(_u('/health')).timeout(const Duration(seconds: 4));

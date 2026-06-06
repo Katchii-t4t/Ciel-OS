@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import '../services/ciel_api.dart';
 import '../services/launcher.dart';
 import '../services/handwriting.dart';
@@ -34,6 +37,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final Handwriting _hand = Handwriting();
   final Lock _lock = Lock();
   final Voice _voice = Voice();
+  final AudioRecorder _rec = AudioRecorder();
+  bool _recording = false;
   bool _overlayPerm = false;
   bool _lockEnabled = false;
   bool _girlPermanent = true; // vis girl mode alltid (kan slåast av i innstillingar)
@@ -169,6 +174,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (mounted) setState(() => _busy = false);
       if (_voiceOn && _answer.trim().isNotEmpty) _voice.speak(_answer); // Ciel les svaret høgt
     });
+  }
+
+  // ── Stemme inn: opptak → NB-Whisper → spør ──────────────────────────────
+  Future<void> _toggleRecord() async {
+    if (_recording) {
+      final path = await _rec.stop();
+      if (mounted) setState(() => _recording = false);
+      if (path == null) return;
+      if (mounted) setState(() => _busy = true);
+      final bytes = await File(path).readAsBytes();
+      final text = await _api.transcribe(bytes);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      if (text != null && text.trim().isNotEmpty) {
+        _input.text = text;
+        _ask();
+      } else {
+        _flash('Høyrde ikkje noko — prøv igjen');
+      }
+    } else {
+      if (!await _rec.hasPermission()) {
+        _flash('Mikrofon-løyve trengst');
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      await _rec.start(
+        const RecordConfig(encoder: AudioEncoder.wav, sampleRate: 16000, numChannels: 1),
+        path: '${dir.path}/ciel_rec.wav',
+      );
+      if (mounted) setState(() => _recording = true);
+    }
   }
 
   // ── Velkomst-helsing (JARVIS-augneblinken etter opplåsing) ───────────────
@@ -325,6 +361,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _answerScroll.dispose();
     _hand.dispose();
     _voice.stop();
+    _rec.dispose();
     super.dispose();
   }
 
@@ -518,6 +555,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             child: Row(children: [
+              IconButton(
+                tooltip: 'Snakk til Ciel',
+                icon: Icon(_recording ? Icons.stop_circle : Icons.mic,
+                    color: _recording ? Colors.redAccent : _modeColor),
+                onPressed: (_busy && !_recording) ? null : _toggleRecord,
+              ),
               IconButton(
                 tooltip: 'Djupt svar (SNL + Wikipedia + PubMed)',
                 icon: Icon(Icons.auto_awesome,

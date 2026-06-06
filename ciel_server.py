@@ -56,6 +56,7 @@ PORT = int(os.environ.get("CIEL_PORT", "8765"))
 MODEL_SIMPLE   = os.environ.get("CIEL_MODEL_SIMPLE",   "claude-haiku-4-5")
 MODEL_COMPLEX  = os.environ.get("CIEL_MODEL_COMPLEX",  "claude-sonnet-4-6")
 MODEL_CRITICAL = os.environ.get("CIEL_MODEL_CRITICAL", "claude-opus-4-8")
+WHISPER_MODEL  = os.environ.get("CIEL_WHISPER", "NbAiLab/nb-whisper-medium")
 
 # Modusar (SPEC §7) + heim-fargane (§6.3)
 MODES = {
@@ -439,19 +440,57 @@ async def api_command(req: CommandRequest):
     return {"ok": True, "command": req.command, "result": result}
 
 
+_whisper = None
+
+
+def _get_whisper():
+    """Lazy-last NB-Whisper (norsk, frå Nasjonalbiblioteket). Berre éin gong."""
+    global _whisper
+    if _whisper is None:
+        import torch
+        from transformers import pipeline as hf_pipeline
+        _whisper = hf_pipeline(
+            "automatic-speech-recognition",
+            model=WHISPER_MODEL,
+            device="cpu",
+            torch_dtype=torch.float32,
+        )
+    return _whisper
+
+
 @app.post("/api/transcribe")
 async def api_transcribe(file: UploadFile = File(...)):
-    # NB-Whisper krev torch + transformers (ikkje installert på denne verten).
+    """Lyd (WAV) → tekst via NB-Whisper på PC-en. Tvungen norsk."""
     try:
-        import torch  # noqa: F401
-        import transformers  # noqa: F401
+        import soundfile  # noqa: F401
     except ImportError:
-        raise HTTPException(
-            503,
-            "STT (NB-Whisper) er ikkje tilgjengeleg her. Krev torch + transformers "
-            "(Module C, Fase 3).",
+        raise HTTPException(503, "STT krev torch + transformers + soundfile på PC-en.")
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, "Tom lydfil.")
+
+    def work():
+        import io as _io
+        import soundfile as _sf
+        arr, sr = _sf.read(_io.BytesIO(data), dtype="float32")
+        if getattr(arr, "ndim", 1) > 1:
+            arr = arr.mean(axis=1)  # til mono
+        pipe = _get_whisper()
+        res = pipe(
+            {"array": arr, "sampling_rate": int(sr)},
+            chunk_length_s=30,
+            batch_size=4,
+            return_timestamps=False,
+            generate_kwargs={"language": "no", "task": "transcribe"},
         )
-    raise HTTPException(501, "Transkribering kjem i Fase 3 (Module C).")
+        return (res.get("text") or "").strip()
+
+    try:
+        text = await asyncio.to_thread(work)
+    except Exception as e:
+        raise HTTPException(502, f"Transkriberingsfeil: {e}")
+    _log_action("transcribe", {"chars": len(text)})
+    return {"text": text}
 
 
 @app.websocket("/ws/stream")

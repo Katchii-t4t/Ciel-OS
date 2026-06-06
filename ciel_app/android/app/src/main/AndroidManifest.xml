@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <!-- Ciel velkomstport: fingeravtrykk / fjes -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <!-- Stemme inn: mikrofon-opptak -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- Ciel-orb som låsskjerm-bakgrunn -->
     <uses-permission android:name="android.permission.SET_WALLPAPER"/>
     <application
