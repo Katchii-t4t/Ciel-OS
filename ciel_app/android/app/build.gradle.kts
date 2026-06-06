@@ -27,9 +27,12 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Signerer med debug-nøklane for no, så sideload fungerer.
             signingConfig = signingConfigs.getByName("debug")
+            // Skru AV R8/ressurs-shrinking: det strippa WorkManager/Room som ML Kit
+            // (digital ink) treng → krasj. Dart AOT (sjølve ytinga) er uavhengig.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

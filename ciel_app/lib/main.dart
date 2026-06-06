@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
@@ -87,8 +88,32 @@ void overlayMain() {
   runApp(const _CielOverlayApp());
 }
 
-class _CielOverlayApp extends StatelessWidget {
+class _CielOverlayApp extends StatefulWidget {
   const _CielOverlayApp();
+  @override
+  State<_CielOverlayApp> createState() => _CielOverlayAppState();
+}
+
+class _CielOverlayAppState extends State<_CielOverlayApp> {
+  Color _color = const Color(0xFFEF9F27);
+  bool _girl = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Tek imot gjeldande farge/modus frå hovudappen så hjørne-orben matchar heim
+    FlutterOverlayWindow.overlayListener.listen((event) {
+      try {
+        if (event is String && event.startsWith('{')) {
+          final m = jsonDecode(event) as Map<String, dynamic>;
+          setState(() {
+            if (m['c'] != null) _color = Color(m['c'] as int);
+            if (m['g'] != null) _girl = m['g'] as bool;
+          });
+        }
+      } catch (_) {}
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +132,13 @@ class _CielOverlayApp extends StatelessWidget {
                 Colors.black.withValues(alpha: .0),
               ]),
             ),
-            child: const CielOrb(size: 165, transparentBg: true, brightness: 2.1),
+            child: CielOrb(
+              modeColor: _color,
+              girlMode: _girl,
+              size: 165,
+              transparentBg: true,
+              brightness: 2.1,
+            ),
           ),
         ),
       ),

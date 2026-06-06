@@ -119,6 +119,22 @@ Lang-trykk på orben → innstillingar (server-URL, modus, girl mode).
 | `lib/services/ciel_api.dart` | REST + WebSocket-klient mot ciel_server.py |
 | `lib/widgets/orb.dart` | Ciel-orben (CustomPainter) — gull + girl mode |
 
+## Nettbrett — Fase 4 (Ciel OS-kjensla)
+`ciel_app` er no ei full launcher-oppleving på Tab S10+:
+- **Heimskjerm-launcher** (HOME-intent): orben *er* heimskjermen, kant-til-kant svart.
+- **S Pen → handling:** skriv eit ord på orben → ML Kit (lokalt) → opnar app /
+  startar scene / spør Ciel. Normalisert matching + fleire tolkingar (toler "good notes").
+- **Orb-til-hjørne:** flutter_overlay_window — orben svever over andre appar (matchar
+  modus-farge), trykk → tilbake til Ciel. (Krev batteri "Ubegrensa" på Samsung.)
+- **Auto-farge:** girl mode (trans-flagg) som standard; server klassifiserer tema →
+  modus/girl-mode over /ws/events.
+- **Velkomstport (SPEC §5):** pennord (sha256) + fingeravtrykk + fjes (BiometricPrompt).
+  Opplevingslag — ikkje einings-tryggleik (One UI-låsen er framleis lag 1).
+- **Levande wallpaper:** WallpaperService teiknar orben (partiklar orbiterer kjernen
+  som eit solsystem) som låsskjerm/heim-bakgrunn. Statisk PNG-variant òg.
+- **Velkomst-helsing:** tidsstyrt "God morgon/ettermiddag/kveld, Dr. Katchi".
+- Eige Ciel-ikon. Bygg: `flutter build apk --release`.
+
 ## Portabilitet
 Vault-stien vert no funnen automatisk under `%USERPROFILE%\OneDrive\Obidian stasj`
 (overstyr med miljøvariabelen `CIEL_VAULT`). Ingen hardkoda brukarnamn.

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
@@ -259,6 +260,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           overlayTitle: 'Ciel',
         );
       }
+      // send gjeldande farge/modus til hjørne-orben så han matchar heim
+      await Future.delayed(const Duration(milliseconds: 250));
+      await FlutterOverlayWindow.shareData(jsonEncode({
+        'c': _modeColor.toARGB32(),
+        'g': _girlPermanent || _girlMode,
+      }));
     } catch (_) {}
   }
 
