@@ -93,6 +93,20 @@ def _log_action(kind: str, payload: dict):
         pass
 
 
+# ── Tema-klassifisering (girl mode auto-trigger, §6.6) ───────────────────────
+GIRL_TRIGGERS = {
+    "østrogen", "estrogen", "estradiol", "hrt", "hormon", "hormone",
+    "progesteron", "mensen", "menstru", "sminke", "makeup", "kjole",
+    "skjørt", "shopping", "feminin", "feminine", "bryst", "jenteprat",
+    "transisjon", "transition", "antiandrogen",
+}
+
+
+def classify_girl_mode(question: str) -> bool:
+    q = question.lower()
+    return any(t in q for t in GIRL_TRIGGERS)
+
+
 # ── LLM-routing ───────────────────────────────────────────────────────────────
 def route_model(deep: bool, override: str | None = None) -> str:
     """Vel billegaste modell som passar oppgåva."""
@@ -280,6 +294,15 @@ class EventHub:
 hub = EventHub()
 
 
+async def _maybe_girl_mode(question: str):
+    """Auto girl mode (§6.6): glir til trans-flagg på feminine/personlege tema,
+    og tilbake til gull elles. Sender overgang til orben via /ws/events."""
+    gm = classify_girl_mode(question)
+    if gm != STATE["girl_mode"]:
+        STATE["girl_mode"] = gm
+        await hub.broadcast({"type": "girl_mode", "on": gm, "ts": _now()})
+
+
 # ── Kommando-eksekutor (fast allow-liste, SPEC §11) ──────────────────────────
 async def exec_command(name: str, args: dict) -> dict:
     """Køyrer berre handlingar frå allow-lista. Ingen vilkårleg eksekvering."""
@@ -397,6 +420,7 @@ async def api_ask(req: AskRequest):
     model = route_model(req.deep, req.model)
     max_tokens = 1200 if req.deep else 900
     _log_action("ask", {"deep": req.deep, "model": model, "q": req.question[:200]})
+    await _maybe_girl_mode(req.question)
     # Bygg prompt (kan gjere nett-I/O) + LLM-kall i tråd, så event-loopen ikkje blokkerer.
     prompt = await asyncio.to_thread(build_prompt, req.question, req.deep, req.context)
     try:
@@ -448,6 +472,7 @@ async def ws_stream(ws: WebSocket):
             model   = route_model(deep, data.get("model"))
             max_tokens = 1200 if deep else 900
             _log_action("ws_ask", {"deep": deep, "model": model, "q": question[:200]})
+            await _maybe_girl_mode(question)
 
             await ws.send_json({"start": True, "model": model, "deep": deep})
             prompt = await asyncio.to_thread(build_prompt, question, deep, context)
