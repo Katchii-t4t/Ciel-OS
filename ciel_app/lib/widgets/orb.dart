@@ -4,32 +4,85 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 
-/// Renderar ein STILL-ramme av orben til PNG — for låsskjerm-bakgrunn o.l.
-/// (statisk, ingen animasjon/pulsing).
+/// Renderar ein STILL-ramme av orben til PNG — matchar det levande bakgrunnet
+/// (stjernefelt heilt ut til kantane, lyse kjerne, trans/gull). Ingen animasjon.
 Future<Uint8List?> renderOrbPng({
   required int width,
   required int height,
   Color color = const Color(0xFFFFC850),
   bool girl = false,
-  double brightness = 1.35,
   double t = 0.7,
 }) async {
+  const List<double> blue = [123, 205, 255];
+  const List<double> white = [255, 255, 255];
+  const List<double> pink = [245, 169, 196];
+  final gold = [color.r * 255, color.g * 255, color.b * 255];
+
+  List<double> bandRgb(int b) => !girl ? gold : (b == 0 ? blue : b == 1 ? white : pink);
+  Color bcol(int b, double a) {
+    final c = bandRgb(b);
+    return Color.fromRGBO(c[0].round(), c[1].round(), c[2].round(), a.clamp(0.0, 1.0));
+  }
+
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   final w = width.toDouble(), h = height.toDouble();
+  final ctr = Offset(w / 2, h / 2);
+  final maxR = math.min(w, h) * 0.46;
+
   canvas.drawRect(Rect.fromLTWH(0, 0, w, h), Paint()..color = const Color(0xFF000000));
-  final orbD = w * 0.82;
-  canvas.save();
-  canvas.translate((w - orbD) / 2, (h - orbD) / 2);
-  _OrbPainter(
-    t: t,
-    girlMix: girl ? 1.0 : 0.0,
-    base: color,
-    model: _OrbModel(math.Random(42)),
-    transparentBg: true,
-    brightness: brightness,
-  ).paint(canvas, Size(orbD, orbD));
-  canvas.restore();
+
+  // Aura
+  final ac = !girl ? gold : pink;
+  canvas.drawCircle(
+    ctr, maxR * 1.7,
+    Paint()..shader = ui.Gradient.radial(ctr, maxR * 1.7, [
+      Color.fromRGBO(ac[0].round(), ac[1].round(), ac[2].round(), .22),
+      const Color(0x00000000),
+    ], [0.0, 1.0]),
+  );
+
+  // Partiklar — heilt ut til kantane (djupn-fade utover)
+  final rnd = math.Random(42);
+  final dot = Paint();
+  for (var i = 0; i < 320; i++) {
+    final ang = rnd.nextDouble() * math.pi * 2;
+    final rr = 0.20 + rnd.nextDouble() * 1.65;
+    final edge = 1 - ((rr - 0.20) / 1.65) * 0.40;
+    final rad = maxR * rr;
+    final pos = ctr + Offset(math.cos(ang) * rad, math.sin(ang) * rad * 0.92);
+    final size = (2.0 + rnd.nextDouble() * 3.6) * edge;
+    final op = (0.55 + rnd.nextDouble() * 0.42) * edge * (0.6 + 0.4 * math.sin(t * 2 + i));
+    dot.color = bcol(i % 3, op.clamp(0.0, 1.0));
+    canvas.drawCircle(pos, size, dot);
+  }
+
+  // 8 stråler
+  for (var i = 0; i < 8; i++) {
+    final a = t * 0.08 + i / 8 * math.pi * 2;
+    final tip = ctr + Offset(math.cos(a) * maxR * 0.75, math.sin(a) * maxR * 0.75);
+    final third = ((((a % (math.pi * 2)) + math.pi * 2) % (math.pi * 2)) / (math.pi * 2 / 3)).floor();
+    canvas.drawLine(
+      ctr, tip,
+      Paint()
+        ..strokeWidth = 3
+        ..style = PaintingStyle.stroke
+        ..shader = ui.Gradient.linear(ctr, tip, [bcol(third, .45), const Color(0x00000000)], [0.0, 1.0]),
+    );
+  }
+
+  // Kjerne
+  final cc = !girl ? gold : white;
+  canvas.drawCircle(
+    ctr, maxR * 0.15,
+    Paint()..shader = ui.Gradient.radial(ctr, maxR * 0.15, [
+      const Color(0xFFFFFFFF),
+      Color.fromRGBO(cc[0].round(), cc[1].round(), cc[2].round(), .92),
+      const Color(0x00000000),
+    ], [0.0, 0.38, 1.0]),
+  );
+  canvas.drawCircle(ctr, 5, Paint()..color = const Color(0xFFFFFFFF));
+
   final img = await recorder.endRecording().toImage(width, height);
   final data = await img.toByteData(format: ui.ImageByteFormat.png);
   return data?.buffer.asUint8List();

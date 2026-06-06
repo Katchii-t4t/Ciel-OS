@@ -60,9 +60,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // Self-heal: set Ciel-orben som bakgrunn (heim + lås) éin gong, så låsskjermen
   // alltid har orben sjølv om noko nullstilte han.
+  static const _wpVer = 2; // auk for å tvinge re-set av wallpaper-designet
   Future<void> _ensureWallpaper() async {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('wp_init') ?? false) return;
+    if ((prefs.getInt('wp_ver') ?? 0) >= _wpVer) return;
     if (!mounted) return;
     try {
       final sz = MediaQuery.of(context).size;
@@ -75,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
       if (png != null) {
         await Launcher.setLockWallpaper(png);
-        await prefs.setBool('wp_init', true);
+        await prefs.setInt('wp_ver', _wpVer);
       }
     } catch (_) {}
   }
