@@ -97,6 +97,7 @@ class CielOrb extends StatefulWidget {
   final double size;
   final bool transparentBg; // true = ingen svart fyll (for hjørne-overlay)
   final double brightness;  // >1 = sterkare/meir synleg (for overlay)
+  final int fps;            // teikne-rate: 30 er nok for sakte pust (halv straum vs 60)
 
   const CielOrb({
     super.key,
@@ -105,6 +106,7 @@ class CielOrb extends StatefulWidget {
     this.size = 320,
     this.transparentBg = false,
     this.brightness = 1.0,
+    this.fps = 30,
   });
 
   @override
@@ -115,20 +117,29 @@ class _CielOrbState extends State<CielOrb> with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   final ValueNotifier<double> _t = ValueNotifier(0);
   double _girlMix = 0;
-  Duration _last = Duration.zero;
+  Duration _last = Duration.zero;     // siste teikna frame (for fps-gate)
+  Duration _lastEase = Duration.zero; // siste girlMix-easing
   late final _OrbModel _model;
+  late final int _frameUs; // mikrosekund mellom frames (1e6 / fps)
 
   @override
   void initState() {
     super.initState();
     _model = _OrbModel(math.Random(42));
     _girlMix = widget.girlMode ? 1 : 0;
+    _frameUs = (1e6 / widget.fps).round();
     _ticker = createTicker(_onTick)..start();
   }
 
+  // Tickeren bankar på 60–120 Hz, men vi teiknar berre på ynskt fps.
+  // Animasjonen er klokke-basert (_t = elapsed*0.42), så færre frames endrar
+  // IKKJE farten — berre kor mange gonger vi reknar/teiknar. Sakte pust ser
+  // identisk ut på 30 fps, men brukar ~halve straumen av 60.
   void _onTick(Duration elapsed) {
-    final dt = (elapsed - _last).inMicroseconds / 1e6;
+    if ((elapsed - _last).inMicroseconds < _frameUs) return; // hopp over frame
+    final dt = (elapsed - _lastEase).inMicroseconds / 1e6;
     _last = elapsed;
+    _lastEase = elapsed;
     final target = widget.girlMode ? 1.0 : 0.0;
     _girlMix += (target - _girlMix) * math.min(1.0, dt * 2.7);
     _t.value = elapsed.inMicroseconds / 1e6 * 0.42; // matchar JS-tempoet

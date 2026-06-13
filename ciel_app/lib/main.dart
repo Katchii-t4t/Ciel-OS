@@ -138,6 +138,7 @@ class _CielOverlayAppState extends State<_CielOverlayApp> {
               size: 165,
               transparentBg: true,
               brightness: 2.1,
+              fps: 20, // over andre appar: 20 fps er rikeleg, sparar mest batteri
             ),
           ),
         ),

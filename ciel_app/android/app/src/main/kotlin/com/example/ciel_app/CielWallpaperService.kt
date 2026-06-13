@@ -33,6 +33,8 @@ class CielWallpaperService : WallpaperService() {
         private var t = 0f
         private var w = 0f
         private var h = 0f
+        private var lastNanos = 0L      // for ekte delta-tid
+        private var dt = 1f / 60f       // sekund sidan førre frame
 
         private val blue = intArrayOf(123, 205, 255)
         private val white = intArrayOf(255, 255, 255)
@@ -72,6 +74,7 @@ class CielWallpaperService : WallpaperService() {
         override fun onVisibilityChanged(v: Boolean) {
             visible = v
             handler.removeCallbacks(drawer)
+            lastNanos = 0L // nullstill dt så animasjonen ikkje hoppar etter pause
             if (v) handler.post(drawer)
         }
 
@@ -100,6 +103,12 @@ class CielWallpaperService : WallpaperService() {
 
         private fun frame() {
             if (!visible) return
+            // Ekte delta-tid: færre frames endrar IKKJE farten, berre straumbruken.
+            val now = System.nanoTime()
+            dt = if (lastNanos == 0L) 1f / 60f else ((now - lastNanos) / 1e9).toFloat()
+            if (dt > 0.1f) dt = 0.1f // klamp ved lag/pause så ingenting hoppar
+            lastNanos = now
+
             val holder = surfaceHolder
             var canvas: Canvas? = null
             try {
@@ -110,10 +119,15 @@ class CielWallpaperService : WallpaperService() {
             } finally {
                 if (canvas != null) try { holder.unlockCanvasAndPost(canvas) } catch (e: Exception) {}
             }
-            t += 0.016f
-            morph += (targetMorph - morph) * 0.08f
+            // ×60 gjer dei gamle per-frame-stega om til per-sekund (same fart som før)
+            t += 0.96f * dt
+            morph += (targetMorph - morph) * Math.min(1f, 4.8f * dt)
+
+            // 30 fps i ro; berre opplåsings-overgangen (zoom) brukar 60 fps for smjuk rørsle.
+            val transitioning = Math.abs(targetMorph - morph) > 0.01f
+            val delayMs = if (transitioning) 16L else 33L
             handler.removeCallbacks(drawer)
-            if (visible) handler.postDelayed(drawer, 16)
+            if (visible) handler.postDelayed(drawer, delayMs)
         }
 
         private fun render(c: Canvas) {
@@ -135,7 +149,7 @@ class CielWallpaperService : WallpaperService() {
             paint.shader = null
 
             for (i in 0 until n) {
-                ang[i] += spd[i] * 0.016f
+                ang[i] += spd[i] * 0.96f * dt
                 val orbitR = maxR * rad[i]
                 val tightR = maxR * 0.18f * rad[i]
                 val rr = orbitR + (tightR - orbitR) * morph
