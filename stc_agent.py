@@ -25,9 +25,12 @@ import pdfplumber
 from datetime import date
 from pathlib import Path
 
-# UTF-8 output
+# UTF-8 output. Guard for null stdout (t.d. under pythonw) så import aldri krasjar.
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
-sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 # ── Konfigurasjon ──────────────────────────────────────────────────────────────
 # Vault-deteksjon — portabel (fungerer på alle maskiner, uavhengig av brukarnamn).

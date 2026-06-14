@@ -90,6 +90,19 @@ spørsmål, Sonnet for djupe (`deep: true`). Overstyrbart med `CIEL_MODEL_*`.
 handlingar frå ei fast allow-liste (ingen vilkårleg eksekvering), path-traversal
 er blokkert, og kvar kommando vert logga til `logs/action_log.jsonl`.
 
+### Autostart av hjernen
+`start_ciel_server.vbs` startar serveren heilt usynleg ved innlogging. Legg han i
+`shell:startup`. Han les `ANTHROPIC_API_KEY` direkte frå den lagra User-variabelen
+og brukar `python.exe` med skjult vindauge (ikkje `pythonw.exe` — det gjev
+`sys.stdout = None` og krasjar agent-koden lydlaust).
+
+### Helsesjekk
+`ciel_doctor.py` testar heile hjernen ende-til-ende (server, vault, API-nøkkel, eit
+ekte Claude-svar gjennom pipelinen, modus-state) og gir ein ✅/❌-rapport:
+```powershell
+python ciel_doctor.py     # serveren må køyre
+```
+
 ## Modell
 - **Claude (vanleg):** `claude-haiku-4-5` (rask, billeg, god nok for notat)
 - **Claude (djup):** `claude-sonnet-4-6` (Ciel-A / `deep: true`)
