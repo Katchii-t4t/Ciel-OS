@@ -14,7 +14,10 @@ import '../services/voice.dart';
 import '../widgets/orb.dart';
 import '../widgets/ink_layer.dart';
 
-const _defaultUrl = 'http://192.168.10.194:8765';
+// Standard: PC-hjernen sin Tailscale-IP — stabil og når fram overalt der
+// tabletten har Tailscale på (heime som ute). Auto-discovery (sjå _boot) prøver
+// denne + localhost (USB) uansett, så Ciel koplar til utan manuell URL.
+const _defaultUrl = 'http://100.121.52.97:8765';
 
 const Map<String, Color> kModeColors = {
   'ambient': Color(0xFFEF9F27),
