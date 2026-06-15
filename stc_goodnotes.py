@@ -84,6 +84,55 @@ def gjet_mappe(tekst: str, filnamn: str) -> Path:
     return _MEDISIN / "Medisin Forelesninger"
 
 
+def _vault_mapper() -> list[Path]:
+    """Hent dei EKTE mappene i vaulten (så ruting tilpassar seg din struktur)."""
+    skip_parts = {".obsidian", ".trash", "AI", "Usikkere notat ord"}
+    ut = []
+    for d in VAULT.rglob("*"):
+        if not d.is_dir():
+            continue
+        parts = d.relative_to(VAULT).parts
+        if any(s in parts for s in skip_parts):
+            continue
+        if d.name.lower() in {"inn", "arkiv"} or "arkiv" in d.name.lower():
+            continue
+        if len(parts) > 4:          # ikkje for djupt nøsta
+            continue
+        ut.append(d)
+    return ut
+
+
+def vel_mappe(note: str, filnamn: str) -> Path:
+    """Lar Ciel velje den BEST passande EKSISTERANDE mappa basert på innhaldet.
+    Fell tilbake til nøkkelord-heuristikken om noko feilar."""
+    folders = _vault_mapper()
+    if not folders:
+        return gjet_mappe(note, filnamn)
+    rel = [str(f.relative_to(VAULT)).replace("\\", "/") for f in folders]
+    listing = "\n".join(rel)
+    prompt = f"""Eksisterande mapper i Obsidian-vaulten:
+{listing}
+
+Eit nytt fagnotat (filnamn: "{filnamn}") har dette innhaldet:
+{note[:1000]}
+
+Kva mappe passar BEST for dette notatet? Svar med NØYAKTIG éin av stiane frå lista over — berre stien, ingenting anna."""
+    try:
+        resp = client.messages.create(
+            model="claude-haiku-4-5", max_tokens=60,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        ans = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+        ans = ans.strip().strip("`").splitlines()[0].strip() if ans.strip() else ""
+        for f, r in zip(folders, rel):
+            if ans == r:
+                print(f"  [ruting] Ciel valde: {r}")
+                return f
+    except Exception as e:
+        print(f"  [ruting] fall tilbake til nøkkelord ({e})")
+    return gjet_mappe(note, filnamn)
+
+
 def _img_to_b64(img: Image.Image) -> str:
     """Nedskaler + komprimer til JPEG base64 (billegare Vision-kall)."""
     if img.width > MAX_W:
@@ -173,7 +222,7 @@ def til_notat(path: Path):
     if not notat:
         print("  Tomt svar frå Vision."); return
 
-    mappe = gjet_mappe(notat, path.stem)
+    mappe = vel_mappe(notat, path.stem)
     mappe.mkdir(parents=True, exist_ok=True)
     notat_path = mappe / f"{path.stem}.md"
     notat_path.write_text(notat, encoding="utf-8")
