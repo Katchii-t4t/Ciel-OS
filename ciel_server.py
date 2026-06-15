@@ -48,6 +48,13 @@ from stc_agent import (
     fetch_snl, fetch_wikipedia, fetch_pubmed,
 )
 
+# Fase 5 (Module F + J) — proaktiv motor + livssporing. Valfri/fjernbar:
+# om fila manglar, fell endepunkta tilbake til ein trygg stub.
+try:
+    import ciel_proactive
+except Exception:
+    ciel_proactive = None
+
 # ── Konfigurasjon ─────────────────────────────────────────────────────────────
 PORT = int(os.environ.get("CIEL_PORT", "8765"))
 
@@ -403,7 +410,9 @@ def vault_note(path: str):
 
 @app.get("/api/tracker/today")
 def tracker_today():
-    # Stub — full tracker kjem i Fase 5 (Module J). Velvære-vakt: kvile er positivt.
+    # Fase 5 (Module J): gjennomsiktig dagsscore med velvære-vakt.
+    if ciel_proactive is not None:
+        return ciel_proactive.daily_score()
     return {
         "date": date.today().isoformat(),
         "score": None,
@@ -411,6 +420,15 @@ def tracker_today():
         "metrics": {},
         "wellbeing_note": "Kvile er ein positiv metrikk — ingen restriksjons-rammar.",
     }
+
+
+@app.get("/api/briefing")
+async def api_briefing(kind: str = "morning"):
+    # Fase 5 (Module F): proaktiv morgon/kveld-briefing, klar til å lesast høgt.
+    if ciel_proactive is None:
+        raise HTTPException(503, "Proaktiv motor ikkje tilgjengeleg (ciel_proactive manglar).")
+    model = route_model(False, None)
+    return await asyncio.to_thread(ciel_proactive.briefing, kind, complete, model)
 
 
 @app.post("/api/ask")

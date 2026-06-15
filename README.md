@@ -80,7 +80,8 @@ Interaktive API-dokument: `http://localhost:8765/docs`
 | `GET /api/vault/note?path=` | Eitt notat sitt innhald |
 | `POST /api/command` | Fast allow-liste: `set_mode`, `set_girl_mode`, `open_note`, `search_vault` |
 | `GET /api/state` | Gjeldande modus + farge |
-| `GET /api/tracker/today` | Dagsscore (stub — Fase 5) |
+| `GET /api/tracker/today` | Gjennomsiktig dagsscore + mild prioritet (Fase 5, Module J) |
+| `GET /api/briefing?kind=morning\|evening` | Proaktiv briefing, klar til å lesast høgt (Fase 5, Module F) |
 | `POST /api/transcribe` | Lyd → tekst (Fase 3) |
 
 **Smart LLM-routing:** billegaste modell som klarar jobben — Haiku for vanlege
