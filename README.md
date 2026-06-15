@@ -82,7 +82,13 @@ Interaktive API-dokument: `http://localhost:8765/docs`
 | `GET /api/state` | Gjeldande modus + farge |
 | `GET /api/tracker/today` | Gjennomsiktig dagsscore + mild prioritet (Fase 5, Module J) |
 | `GET /api/briefing?kind=morning\|evening` | Proaktiv briefing, klar til å lesast høgt (Fase 5, Module F) |
+| `GET /api/proactive/due` | Kva proaktive hendingar er due no (planleggjar) |
 | `POST /api/transcribe` | Lyd → tekst (Fase 3) |
+
+**Proaktiv planleggjar (Module F):** ein bakgrunnsløkke sender morgon- (kl. 07) og
+kveldsbriefing (kl. 21) over `/ws/events` éin gong per dag — Ciel snakkar opp av seg
+sjølv, ikkje berre når du spør. Tidene er overstyrbare med `CIEL_MORNING_HOUR` /
+`CIEL_EVENING_HOUR`.
 
 **Smart LLM-routing:** billegaste modell som klarar jobben — Haiku for vanlege
 spørsmål, Sonnet for djupe (`deep: true`). Overstyrbart med `CIEL_MODEL_*`.

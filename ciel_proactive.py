@@ -18,8 +18,14 @@ side enno — dei vert lista som "ikkje tilkopla", aldri gjetta eller fabrikkert
 
 from __future__ import annotations
 
+import os
 from datetime import date, datetime, timezone
 from stc_agent import VAULT, IGNORE
+
+# Faste tider for proaktiv levering (lokal tid). Overstyrbart med miljøvariablar.
+MORNING_HOUR = int(os.environ.get("CIEL_MORNING_HOUR", "7"))   # morgonbriefing frå kl. 07
+EVENING_HOUR = int(os.environ.get("CIEL_EVENING_HOUR", "21"))  # kveldsbriefing frå kl. 21
+MORNING_WINDOW = 4   # morgonbriefing kan framleis leverast inntil 4 t etter (om du sov)
 
 
 # ── Config: gjennomsiktige vekter (summerer til 1.0) ─────────────────────────
@@ -153,3 +159,40 @@ Tiltal henne som "Dr. Katchi". Vær konkret om hennar eigne tema. Aldri masande;
         text = f"(Briefing utilgjengeleg — kunne ikkje nå språkmodellen: {e})"
 
     return {"kind": kind, "date": date.today().isoformat(), "text": text, "score": sc["score"]}
+
+
+def due_events(now: datetime | None = None, already_fired: set[str] | None = None) -> list[dict]:
+    """Rein funksjon (Module F): kva proaktive hendingar er due NO?
+    Serveren held styr på kva som alt er levert i dag (`already_fired`), så
+    same briefing ikkje kjem to gonger. Testbar når som helst med eit gjeve `now`."""
+    now = now or datetime.now()
+    fired = already_fired or set()
+    h = now.hour
+    due: list[dict] = []
+
+    if "morning" not in fired and MORNING_HOUR <= h < MORNING_HOUR + MORNING_WINDOW:
+        due.append({"kind": "morning", "reason": "morgonbriefing"})
+
+    if "evening" not in fired and h >= EVENING_HOUR:
+        due.append({"kind": "evening", "reason": "kveldsbriefing"})
+
+    return due
+
+
+# ── Sjølvtest: `python ciel_proactive.py` ────────────────────────────────────
+if __name__ == "__main__":
+    import sys
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sc = daily_score()
+    print(f"\nDagsscore: {sc['score']}/100")
+    for c in sc["components"]:
+        print(f"  • {c['label']}: {c['value']}  → {c['points']} poeng (vekt {c['weight']})")
+    print(f"  Prioritet: {sc['priority']}")
+    print(f"  Ikkje tilkopla enno: {', '.join(sc['signals_pending'])}")
+
+    print("\nProaktiv planleggjar (kva er due til ulike tider):")
+    for hh in (6, 8, 14, 21, 23):
+        t = datetime.now().replace(hour=hh, minute=0)
+        evs = [e["kind"] for e in due_events(t)]
+        print(f"  kl. {hh:02d}:00 → {evs or 'ingenting'}")
+

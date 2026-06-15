@@ -431,6 +431,46 @@ async def api_briefing(kind: str = "morning"):
     return await asyncio.to_thread(ciel_proactive.briefing, kind, complete, model)
 
 
+# Proaktiv planleggjar (Module F): held styr på kva som alt er levert i dag.
+_proactive_fired = {"date": None, "kinds": set()}
+
+
+@app.get("/api/proactive/due")
+def proactive_due():
+    """Kva proaktive hendingar er due no? (synleg for klient + testing)"""
+    if ciel_proactive is None:
+        return {"due": []}
+    return {"due": ciel_proactive.due_events()}
+
+
+async def _proactive_loop():
+    """Bakgrunnsløkke: sender briefing over /ws/events til rett tid (éin gong/dag)."""
+    while True:
+        try:
+            now = datetime.now()
+            today = now.date().isoformat()
+            if _proactive_fired["date"] != today:
+                _proactive_fired["date"] = today
+                _proactive_fired["kinds"] = set()
+            for ev in ciel_proactive.due_events(now, _proactive_fired["kinds"]):
+                kind = ev["kind"]
+                model = route_model(False, None)
+                b = await asyncio.to_thread(ciel_proactive.briefing, kind, complete, model)
+                await hub.broadcast({"type": "briefing", "kind": kind,
+                                     "text": b["text"], "score": b["score"], "ts": _now()})
+                _proactive_fired["kinds"].add(kind)
+                _log_action("proactive", {"kind": kind})
+        except Exception:
+            pass
+        await asyncio.sleep(60)
+
+
+@app.on_event("startup")
+async def _start_proactive():
+    if ciel_proactive is not None:
+        asyncio.create_task(_proactive_loop())
+
+
 @app.post("/api/ask")
 async def api_ask(req: AskRequest):
     if not req.question.strip():
