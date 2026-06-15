@@ -35,4 +35,7 @@ sh.CurrentDirectory = base
 ' 0 = heilt usynleg, False = ikkje vent
 sh.Run Chr(34) & py & Chr(34) & " """ & base & "ciel_server.py""", 0, False
 
+' GoodNotes-agent: les eksporterte GoodNotes (handskrift) -> Obsidian-notat
+sh.Run Chr(34) & py & Chr(34) & " """ & base & "stc_goodnotes.py""", 0, False
+
 Set sh = Nothing

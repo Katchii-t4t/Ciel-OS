@@ -29,7 +29,25 @@ Ciel er eit sett Python-agentar som overvaker Obsidian-vaulten og svarar automat
 | `stc_pdf.py` | PDF-agent — les og svarar på spørsmål om PDF-embeddar |
 | `stc_autolink.py` | Autolenkjar — lagar wikilenker mellom notat |
 | `stc_morning.py` | Morgenoversikt — dagleg samandrag |
+| `stc_goodnotes.py` | GoodNotes (handskrift) → Obsidian-notat via Claude Vision |
 | `ciel_server.py` | **Backend-server (Fase 1)** — FastAPI som eksponerer Ciel for nettbrett/telefon |
+
+## GoodNotes → Obsidian (handskrift via Claude Vision)
+
+GoodNotes har ingen open API, og notata er handskrift (blekk). Broa: eksporter
+GoodNotes-sider som **PDF eller bilete** inn i `AI/GoodNotes/inn/` (synka via
+vaulten). `stc_goodnotes.py` renderar sidene, les handskrifta med **Claude Vision**,
+lagar eit strukturert nynorsk-notat, rutar det til rett fagmappe og arkiverer
+originalen til `AI/GoodNotes/arkiv/`.
+
+```powershell
+python stc_goodnotes.py            # vakt-modus (overvaker inn/)
+python stc_goodnotes.py <fil>      # prosesser éi fil med ein gong
+```
+
+Krev `pymupdf` + `pillow`. Vision-modell overstyrbar med `CIEL_VISION_MODEL`
+(standard `claude-sonnet-4-6` — sterk på handskrift). Uleselege parti vert markerte,
+ikkje gjetta. Bileta blir sende til Anthropic (Claude Vision), som PDF/lyd-agentane.
 
 ## Oppsett
 

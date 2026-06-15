@@ -8,6 +8,10 @@ pdfplumber
 python-chess
 requests
 
+# GoodNotes -> Obsidian (stc_goodnotes.py — handskrift via Claude Vision)
+pymupdf
+pillow
+
 # Lyd-transkribering (stc_lyd.py — Module C, Fase 3). Store pakkar, valfritt:
 # transformers
 # accelerate
