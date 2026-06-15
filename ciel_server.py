@@ -497,6 +497,31 @@ async def api_command(req: CommandRequest):
     return {"ok": True, "command": req.command, "result": result}
 
 
+@app.post("/api/goodnotes")
+async def api_goodnotes(file: UploadFile = File(...)):
+    """Ta imot ein GoodNotes-eksport (PDF/bilete) frå klienten (Del → Ciel) og
+    legg den i AI/GoodNotes/inn/. stc_goodnotes-vakta plukkar den opp, les
+    handskrifta med Vision og lagar eit Obsidian-notat i rett mappe."""
+    inn = VAULT / "AI" / "GoodNotes" / "inn"
+    inn.mkdir(parents=True, exist_ok=True)
+    # Reinsk filnamnet (ingen path-traversal) — berre basisnamnet.
+    raw = Path(file.filename or "goodnotes.pdf").name
+    safe = re.sub(r"[^A-Za-z0-9æøåÆØÅ._ -]", "_", raw) or "goodnotes.pdf"
+    allowed = {".pdf", ".png", ".jpg", ".jpeg", ".webp"}
+    if Path(safe).suffix.lower() not in allowed:
+        raise HTTPException(400, f"Ikkje støtta filtype: {safe}")
+    # Unngå å overskrive: legg til teljar om namnet finst.
+    dest = inn / safe
+    i = 1
+    while dest.exists():
+        dest = inn / f"{Path(safe).stem}_{i}{Path(safe).suffix}"
+        i += 1
+    data = await file.read()
+    dest.write_bytes(data)
+    _log_action("goodnotes_upload", {"name": dest.name, "bytes": len(data)})
+    return {"ok": True, "saved": dest.name, "bytes": len(data)}
+
+
 _whisper = None
 
 

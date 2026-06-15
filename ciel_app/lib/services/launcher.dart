@@ -57,4 +57,21 @@ class Launcher {
       return [];
     }
   }
+
+  /// Del → Ciel: hent (og tøm) køen av delte filer som venter på opplasting.
+  static Future<List<String>> consumeSharedFiles() async {
+    try {
+      final res = await _ch.invokeMethod<List<dynamic>>('consumeSharedFiles');
+      return (res ?? []).map((e) => e.toString()).toList();
+    } on PlatformException {
+      return [];
+    }
+  }
+
+  /// Kall [cb] når nye delte filer kjem inn medan appen køyrer (varm start).
+  static void onSharedFiles(void Function() cb) {
+    _ch.setMethodCallHandler((call) async {
+      if (call.method == 'sharedFilesAvailable') cb();
+    });
+  }
 }

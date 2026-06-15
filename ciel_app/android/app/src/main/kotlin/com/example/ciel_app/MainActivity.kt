@@ -2,12 +2,18 @@ package com.example.ciel_app
 
 import android.content.Intent
 import android.content.pm.ResolveInfo
+import android.net.Uri
+import android.provider.OpenableColumns
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.io.FileOutputStream
 
 class MainActivity : FlutterFragmentActivity() {
     private val channelName = "ciel/launcher"
+    private var channel: MethodChannel? = null
+    private val pendingShared = mutableListOf<String>()   // Del → Ciel: filer som ventar
 
     // Merk: vi viser IKKJE Ciel over den sikre låsskjermen lenger. Android lèt deg
     // ikkje opne appar over låsen, så showWhenLocked gav ein forvirrande "halvlåst"
@@ -16,8 +22,8 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
-            .setMethodCallHandler { call, result ->
+        channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+        channel!!.setMethodCallHandler { call, result ->
                 when (call.method) {
                     "launchApp" -> result.success(launchAppByName(call.argument<String>("query") ?: ""))
                     "listApps" -> result.success(listAppLabels())
@@ -35,9 +41,63 @@ class MainActivity : FlutterFragmentActivity() {
                             } catch (e: Exception) { false }
                         )
                     }
+                    "consumeSharedFiles" -> {
+                        val paths = synchronized(pendingShared) {
+                            val c = pendingShared.toList(); pendingShared.clear(); c
+                        }
+                        result.success(paths)
+                    }
                     else -> result.notImplemented()
                 }
             }
+        // Kald start: kom appen i gang via ei "Del"-handling? Lagre filene.
+        handleSendIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleSendIntent(intent)
+        // Varm start: gi Flutter beskjed om å hente dei delte filene.
+        if (synchronized(pendingShared) { pendingShared.isNotEmpty() }) {
+            channel?.invokeMethod("sharedFilesAvailable", null)
+        }
+    }
+
+    /** Del → Ciel: kopier delte filer (PDF/bilete) til cache og legg stiane i kø. */
+    private fun handleSendIntent(intent: Intent?) {
+        intent ?: return
+        val uris = mutableListOf<Uri>()
+        @Suppress("DEPRECATION")
+        when (intent.action) {
+            Intent.ACTION_SEND ->
+                (intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM))?.let { uris.add(it) }
+            Intent.ACTION_SEND_MULTIPLE ->
+                intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { uris.addAll(it) }
+        }
+        val paths = uris.mapNotNull { copyUriToCache(it) }
+        if (paths.isNotEmpty()) synchronized(pendingShared) { pendingShared.addAll(paths) }
+    }
+
+    private fun displayName(uri: Uri): String {
+        var name = "shared"
+        try {
+            contentResolver.query(uri, null, null, null, null)?.use { c ->
+                val idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0 && c.moveToFirst()) c.getString(idx)?.let { name = it }
+            }
+        } catch (e: Exception) {}
+        return name
+    }
+
+    private fun copyUriToCache(uri: Uri): String? {
+        return try {
+            val out = File(cacheDir, "share_${System.currentTimeMillis()}_${displayName(uri)}")
+            (contentResolver.openInputStream(uri) ?: return null).use { ins ->
+                FileOutputStream(out).use { os -> ins.copyTo(os) }
+            }
+            out.absolutePath
+        } catch (e: Exception) { null }
     }
 
     /** Opnar system-førehandsvisninga for å setje det levande Ciel-bakgrunnet. */

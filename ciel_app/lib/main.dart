@@ -1,11 +1,20 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home.dart';
 import 'screens/lock_gate.dart';
 import 'services/lock.dart';
+import 'services/launcher.dart';
+import 'services/ciel_api.dart';
 import 'widgets/orb.dart';
+
+// Standard hjerne-URL (PC sin Tailscale-IP) om ingen er lagra enno.
+const _brainFallback = 'http://100.121.52.97:8765';
+// Lar oss vise SnackBar frå kor som helst (t.d. når ei delt fil kjem inn).
+final GlobalKey<ScaffoldMessengerState> cielMessenger = GlobalKey<ScaffoldMessengerState>();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +46,7 @@ class CielApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
+      scaffoldMessengerKey: cielMessenger,
       home: const CielRoot(),
     );
   }
@@ -58,6 +68,37 @@ class _CielRootState extends State<CielRoot> {
   void initState() {
     super.initState();
     _check();
+    _initShare();
+  }
+
+  // Del → Ciel: ta imot delte filer (GoodNotes-eksport) og send til hjernen.
+  // Native sida (MainActivity) legg filene i kø; her hentar vi dei.
+  void _initShare() {
+    Launcher.onSharedFiles(_pullShared);   // varm start (medan appen køyrer)
+    _pullShared();                         // kald start (delt før app opna)
+  }
+
+  Future<void> _pullShared() async {
+    final paths = await Launcher.consumeSharedFiles();
+    if (paths.isEmpty) return;
+    cielMessenger.currentState?.showSnackBar(
+      const SnackBar(content: Text('Sender til Ciel …')),
+    );
+    final prefs = await SharedPreferences.getInstance();
+    final api = CielApi(prefs.getString('serverUrl') ?? _brainFallback);
+    var ok = 0;
+    for (final p in paths) {
+      try {
+        final bytes = await File(p).readAsBytes();
+        final name = p.split(RegExp(r'[\\/]')).last;
+        if (await api.uploadGoodNotes(bytes, name) != null) ok++;
+      } catch (_) {}
+    }
+    cielMessenger.currentState?.showSnackBar(SnackBar(
+      content: Text(ok > 0
+          ? 'Ciel mottok $ok fil(er) → lagar Obsidian-notat …'
+          : 'Fekk ikkje kontakt med hjernen — prøv igjen'),
+    ));
   }
 
   Future<void> _check() async {

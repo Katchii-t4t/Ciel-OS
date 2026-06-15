@@ -49,6 +49,14 @@ Krev `pymupdf` + `pillow`. Vision-modell overstyrbar med `CIEL_VISION_MODEL`
 (standard `claude-sonnet-4-6` — sterk på handskrift). Uleselege parti vert markerte,
 ikkje gjetta. Bileta blir sende til Anthropic (Claude Vision), som PDF/lyd-agentane.
 
+**Ruting:** `vel_mappe()` les dei EKTE mappene i vaulten og lar Ciel velje den
+best passande basert på innhaldet (med nøkkelord-heuristikk som fallback).
+
+**Del → Ciel (tablet):** GoodNotes → del PDF/bilete → vel **Ciel**. Appen tek imot
+fila (nativ `ACTION_SEND` i `MainActivity`), sender den til `POST /api/goodnotes`
+på hjernen, som legg den i `inn/` → notat. Ingen manuell lagring. Server-endepunktet
+og ruting er verifiserte ende-til-ende; sjølve share-handoffen testar du frå GoodNotes.
+
 ## Oppsett
 
 ### Krav
