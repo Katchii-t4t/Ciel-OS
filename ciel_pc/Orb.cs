@@ -57,9 +57,10 @@ public sealed class Orb
 
     // t = sekund sidan start. gold = gjeldande modus-farge (tintar glød + stråler).
     // girl: trans-flagg-band på partiklane (permanent på, som tabletten sin heim).
-    public void Render(SKCanvas canvas, int w, int h, double t, SKColor gold, bool girl)
+    // bg = null → gjennomsiktig (overlay); svart → skrivebordsbakgrunn.
+    public void Render(SKCanvas canvas, int w, int h, double t, SKColor gold, bool girl, SKColor? bg = null)
     {
-        canvas.Clear(SKColors.Transparent);
+        canvas.Clear(bg ?? SKColors.Transparent);
         float cx = w / 2f, cy = h / 2f;
         float minDim = Math.Min(w, h);
         float maxR = minDim * 0.40f;
