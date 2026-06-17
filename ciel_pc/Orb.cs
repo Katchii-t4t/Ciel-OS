@@ -52,30 +52,37 @@ public sealed class Orb
         return new SKColor(c[0], c[1], c[2], (byte)(Math.Clamp(a, 0, 1) * 255));
     }
 
-    // t = sekund sidan start. gold = gjeldande modus-farge (standard #EF9F27).
+    // Partiklane held seg innanfor ein sirkel som fader mjukt → ingen firkant.
+    const float Spread = 0.62f;
+
+    // t = sekund sidan start. gold = gjeldande modus-farge (tintar glød + stråler).
+    // girl: trans-flagg-band på partiklane (permanent på, som tabletten sin heim).
     public void Render(SKCanvas canvas, int w, int h, double t, SKColor gold, bool girl)
     {
         canvas.Clear(SKColors.Transparent);
         float cx = w / 2f, cy = h / 2f;
-        float maxR = Math.Min(w, h) * 0.46f;
+        float minDim = Math.Min(w, h);
+        float maxR = minDim * 0.40f;
         var ctr = new SKPoint(cx, cy);
+
+        // Alt teiknast i eit lag, så maskerer vi det til ein mjuk sirkel (rund fade).
+        canvas.SaveLayer(null);
 
         using var paint = new SKPaint { IsAntialias = true };
 
-        // Aura — mjuk glød (gull, eller rosa i girl mode)
-        byte[] ac = !girl ? new[] { gold.Red, gold.Green, gold.Blue } : Pink;
+        // Aura — mjuk glød i modus-fargen (synleg mode-sync sjølv i trans-flagg)
         paint.Style = SKPaintStyle.Fill;
-        paint.Shader = SKShader.CreateRadialGradient(ctr, maxR * 1.7f,
-            new[] { new SKColor(ac[0], ac[1], ac[2], 56), new SKColor(0, 0, 0, 0) },
+        paint.Shader = SKShader.CreateRadialGradient(ctr, maxR * 1.2f,
+            new[] { new SKColor(gold.Red, gold.Green, gold.Blue, 64), new SKColor(0, 0, 0, 0) },
             new float[] { 0f, 1f }, SKShaderTileMode.Clamp);
-        canvas.DrawCircle(cx, cy, maxR * 1.7f, paint);
+        canvas.DrawCircle(cx, cy, maxR * 1.2f, paint);
         paint.Shader = null;
 
-        // Partiklar — orbiterer kjernen
+        // Partiklar — orbiterer kjernen, trans-flagg-band (eller gull om girl=false)
         for (int i = 0; i < N; i++)
         {
             double a = ang0[i] + spd[i] * 0.96 * t;
-            float rad = maxR * (float)rr[i];
+            float rad = maxR * (float)rr[i] * Spread;
             float px = cx + (float)Math.Cos(a) * rad;
             float py = cy + (float)Math.Sin(a) * rad * 0.92f;
             double op = opBase[i] * (0.5 + 0.5 * Math.Sin(t * opFreq[i] + opPhase[i]));
@@ -83,7 +90,7 @@ public sealed class Orb
             canvas.DrawCircle(px, py, (float)(szF[i] * maxR * edge[i]), paint);
         }
 
-        // 8 stråler — sakte rotasjon
+        // 8 stråler — sakte rotasjon, tinta av modus-fargen
         double rot = t * 0.08;
         paint.Style = SKPaintStyle.Stroke;
         paint.StrokeWidth = Math.Max(1.5f, maxR * 0.018f);
@@ -92,9 +99,8 @@ public sealed class Orb
             double a = rot + i / 8.0 * TwoPi;
             float len = maxR * (0.72f + 0.08f * (float)Math.Sin(t * 0.6 + i));
             var tip = new SKPoint(cx + (float)Math.Cos(a) * len, cy + (float)Math.Sin(a) * len);
-            int third = (int)(((a % TwoPi + TwoPi) % TwoPi) / (TwoPi / 3));
             paint.Shader = SKShader.CreateLinearGradient(ctr, tip,
-                new[] { Band(third, girl, gold, 0.45), new SKColor(0, 0, 0, 0) },
+                new[] { new SKColor(gold.Red, gold.Green, gold.Blue, 115), new SKColor(0, 0, 0, 0) },
                 new float[] { 0f, 1f }, SKShaderTileMode.Clamp);
             canvas.DrawLine(ctr, tip, paint);
         }
@@ -111,5 +117,15 @@ public sealed class Orb
         paint.Shader = null;
         paint.Color = new SKColor(255, 255, 255, 252);
         canvas.DrawCircle(cx, cy, maxR * 0.02f, paint);
+
+        // Rund maske: behald innhaldet i ein sirkel, fade mjukt til gjennomsiktig.
+        using (var mask = new SKPaint { BlendMode = SKBlendMode.DstIn })
+        {
+            mask.Shader = SKShader.CreateRadialGradient(ctr, minDim * 0.5f,
+                new[] { new SKColor(255, 255, 255, 255), new SKColor(255, 255, 255, 255), new SKColor(255, 255, 255, 0) },
+                new float[] { 0f, 0.60f, 1f }, SKShaderTileMode.Clamp);
+            canvas.DrawRect(0, 0, w, h, mask);
+        }
+        canvas.Restore();
     }
 }

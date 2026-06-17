@@ -55,9 +55,9 @@ public partial class OverlayWindow : Window
         _timer.Tick += (_, _) => { EaseColour(); Skia.InvalidateVisual(); };
         _timer.Start();
 
-        // Mode/farge-sync med tabletten via hjernen
+        // Mode/farge-sync med tabletten via hjernen. Trans-flagg er permanent
+        // (som tabletten sin heim), så vi speglar berre modus-FARGEN — ikkje girl-toggle.
         _client.OnColour = hex => { if (TryHex(hex, out var col)) _targetGold = col; };
-        _client.OnGirl = g => _targetGirl = g;
         _client.Start();
     }
 
