@@ -72,8 +72,10 @@ public sealed class Orb
     // gold = modus-farge (tintar glød + stråler). girl = trans-flagg-band.
     // bg = null → gjennomsiktig (overlay); svart → skrivebordsbakgrunn.
     // maxRFactor = orb-storleik som brøk av minste dimensjon.
+    // round = true → klipp til mjuk sirkel (overlay-hjørnet). false → fyll ramma
+    // ambient (skrivebordsbakgrunn), berre mjuk vignett mot kantane.
     public void Render(SKCanvas canvas, int w, int h, double t, SKColor gold, bool girl,
-                       SKColor? bg = null, double maxRFactor = 0.40)
+                       SKColor? bg = null, double maxRFactor = 0.40, bool round = true)
     {
         canvas.Clear(bg ?? SKColors.Transparent);
         float cx = w / 2f, cy = h / 2f;
@@ -81,7 +83,7 @@ public sealed class Orb
         float maxR = (float)(minDim * maxRFactor);
         var ctr = new SKPoint(cx, cy);
 
-        canvas.SaveLayer(null);
+        if (round) canvas.SaveLayer(null);
         using var paint = new SKPaint { IsAntialias = true };
 
         // Aura — mjuk glød i modus-fargen
@@ -133,14 +135,17 @@ public sealed class Orb
         paint.Color = new SKColor(255, 255, 255, 255);
         canvas.DrawCircle(cx, cy, maxR * 0.025f, paint);
 
-        // Rund maske: behald innhaldet i ein sirkel, fade mjukt til gjennomsiktig
-        using (var mask = new SKPaint { BlendMode = SKBlendMode.DstIn })
+        // Rund maske berre for overlay-hjørnet (mjuk sirkel-fade, ingen firkant).
+        if (round)
         {
-            mask.Shader = SKShader.CreateRadialGradient(ctr, minDim * 0.5f,
-                new[] { new SKColor(255, 255, 255, 255), new SKColor(255, 255, 255, 255), new SKColor(255, 255, 255, 0) },
-                new float[] { 0f, 0.66f, 1f }, SKShaderTileMode.Clamp);
-            canvas.DrawRect(0, 0, w, h, mask);
+            using (var mask = new SKPaint { BlendMode = SKBlendMode.DstIn })
+            {
+                mask.Shader = SKShader.CreateRadialGradient(ctr, minDim * 0.5f,
+                    new[] { new SKColor(255, 255, 255, 255), new SKColor(255, 255, 255, 255), new SKColor(255, 255, 255, 0) },
+                    new float[] { 0f, 0.66f, 1f }, SKShaderTileMode.Clamp);
+                canvas.DrawRect(0, 0, w, h, mask);
+            }
+            canvas.Restore();
         }
-        canvas.Restore();
     }
 }

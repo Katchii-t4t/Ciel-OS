@@ -30,7 +30,8 @@ public static class Wallpaper
 
             using var surface = SKSurface.Create(new SKImageInfo(w, h));
             // Orb-renderaren er trygg å kalle frå bakgrunnstråd (les berre faste data).
-            orb.Render(surface.Canvas, w, h, 0.8, gold, girl, SKColors.Black, 0.52);
+            // Stor, ambient orb som fyller ramma (ikkje sentrert "ikon" i sirkel).
+            orb.Render(surface.Canvas, w, h, 0.8, gold, girl, SKColors.Black, 0.70, round: false);
 
             Directory.CreateDirectory(Path.GetDirectoryName(OutPath)!);
             using (var img = surface.Snapshot())
