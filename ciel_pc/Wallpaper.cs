@@ -30,7 +30,7 @@ public static class Wallpaper
 
             using var surface = SKSurface.Create(new SKImageInfo(w, h));
             // Orb-renderaren er trygg å kalle frå bakgrunnstråd (les berre faste data).
-            orb.Render(surface.Canvas, w, h, 0.8, gold, girl, SKColors.Black);
+            orb.Render(surface.Canvas, w, h, 0.8, gold, girl, SKColors.Black, 0.52);
 
             Directory.CreateDirectory(Path.GetDirectoryName(OutPath)!);
             using (var img = surface.Snapshot())

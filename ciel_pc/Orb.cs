@@ -3,45 +3,62 @@ using SkiaSharp;
 
 namespace Ciel;
 
-// Ciel-orben — trufast port av orb.dart / CielWallpaperService.kt:
-// kvit-gull krystallinsk kjerne, 8 lange stråler, partikkelboble som orbiterer
-// kjernen, mjuk aura. Gull er standard; girl mode = trans-flagg-band (blå/kvit/rosa).
-// Tidsbasert (t i sekund), så fps ikkje endrar fart — berre straumbruk.
+// Ciel-orben — tett, lysande krystallinsk bubble (ikkje spreidd stjernefelt).
+// Tre lag: tett skal-ring (bubla), indre dis, sparsame ytre wisps. Kvit kjerne,
+// 8 stråler, mjuk aura. Trans-flagg-band (blå/kvit/rosa) når girl=true (standard).
+// Tidsbasert (t i sekund) → fps endrar ikkje fart, berre straumbruk.
 public sealed class Orb
 {
-    const int N = 320;
+    const int NShell = 340, NInner = 150, NOuter = 90;
+    const int N = NShell + NInner + NOuter;
     static readonly double TwoPi = Math.PI * 2;
 
     readonly double[] ang0 = new double[N];
-    readonly double[] rr = new double[N];
-    readonly double[] edge = new double[N];
+    readonly double[] rFrac = new double[N];   // radius som brøk av maxR
     readonly double[] spd = new double[N];
-    readonly double[] szF = new double[N];   // storleik som brøk av maxR
-    readonly int[] band = new int[N];
+    readonly double[] szF = new double[N];      // storleik som brøk av maxR
     readonly double[] opBase = new double[N];
     readonly double[] opFreq = new double[N];
     readonly double[] opPhase = new double[N];
+    readonly double[] breathe = new double[N];
+    readonly int[] band = new int[N];
 
-    // trans-flagg + gull
     static readonly byte[] Blue = { 123, 205, 255 };
     static readonly byte[] White = { 255, 255, 255 };
     static readonly byte[] Pink = { 245, 169, 196 };
 
     public Orb()
     {
-        var r = new Random(42); // same seed som tabletten → same partikkelmønster
+        var r = new Random(42);
         for (int i = 0; i < N; i++)
         {
             ang0[i] = r.NextDouble() * TwoPi;
-            double rad = 0.20 + r.NextDouble() * 1.65;     // heilt ut til kantane
-            rr[i] = rad;
-            edge[i] = 1 - ((rad - 0.20) / 1.65) * 0.40;     // ytre litt dimmare (djupn)
-            spd[i] = (0.05 + r.NextDouble() * 0.22) / (0.6 + rad); // ytre orbiterer seinare
-            szF[i] = (2.0 + r.NextDouble() * 3.6) / 165.0;  // ~px ved maxR≈165, skalert
             band[i] = i % 3;
-            opBase[i] = (0.55 + r.NextDouble() * 0.42) * edge[i];
             opFreq[i] = 0.3 + r.NextDouble() * 1.2;
             opPhase[i] = r.NextDouble() * TwoPi;
+
+            if (i < NShell)                       // tett skal-ring = sjølve bubla
+            {
+                rFrac[i] = 0.56 + r.NextDouble() * 0.30;     // 0.56–0.86
+                opBase[i] = 0.48 + r.NextDouble() * 0.42;    // lysare
+                szF[i] = (1.6 + r.NextDouble() * 2.8) / 165.0;
+                breathe[i] = 0.02 + r.NextDouble() * 0.04;
+            }
+            else if (i < NShell + NInner)         // indre dis (djupn mot kjernen)
+            {
+                rFrac[i] = 0.16 + r.NextDouble() * 0.42;
+                opBase[i] = 0.26 + r.NextDouble() * 0.34;
+                szF[i] = (1.0 + r.NextDouble() * 2.0) / 165.0;
+                breathe[i] = 0.01 + r.NextDouble() * 0.03;
+            }
+            else                                  // sparsame ytre wisps
+            {
+                rFrac[i] = 0.90 + r.NextDouble() * 0.55;
+                opBase[i] = 0.10 + r.NextDouble() * 0.22;
+                szF[i] = (1.0 + r.NextDouble() * 2.4) / 165.0;
+                breathe[i] = 0.02 + r.NextDouble() * 0.05;
+            }
+            spd[i] = (0.05 + r.NextDouble() * 0.20) / (0.5 + rFrac[i]); // ytre seinare
         }
     }
 
@@ -52,79 +69,76 @@ public sealed class Orb
         return new SKColor(c[0], c[1], c[2], (byte)(Math.Clamp(a, 0, 1) * 255));
     }
 
-    // Partiklane held seg innanfor ein sirkel som fader mjukt → ingen firkant.
-    const float Spread = 0.62f;
-
-    // t = sekund sidan start. gold = gjeldande modus-farge (tintar glød + stråler).
-    // girl: trans-flagg-band på partiklane (permanent på, som tabletten sin heim).
+    // gold = modus-farge (tintar glød + stråler). girl = trans-flagg-band.
     // bg = null → gjennomsiktig (overlay); svart → skrivebordsbakgrunn.
-    public void Render(SKCanvas canvas, int w, int h, double t, SKColor gold, bool girl, SKColor? bg = null)
+    // maxRFactor = orb-storleik som brøk av minste dimensjon.
+    public void Render(SKCanvas canvas, int w, int h, double t, SKColor gold, bool girl,
+                       SKColor? bg = null, double maxRFactor = 0.40)
     {
         canvas.Clear(bg ?? SKColors.Transparent);
         float cx = w / 2f, cy = h / 2f;
         float minDim = Math.Min(w, h);
-        float maxR = minDim * 0.40f;
+        float maxR = (float)(minDim * maxRFactor);
         var ctr = new SKPoint(cx, cy);
 
-        // Alt teiknast i eit lag, så maskerer vi det til ein mjuk sirkel (rund fade).
         canvas.SaveLayer(null);
-
         using var paint = new SKPaint { IsAntialias = true };
 
-        // Aura — mjuk glød i modus-fargen (synleg mode-sync sjølv i trans-flagg)
+        // Aura — mjuk glød i modus-fargen
         paint.Style = SKPaintStyle.Fill;
-        paint.Shader = SKShader.CreateRadialGradient(ctr, maxR * 1.2f,
-            new[] { new SKColor(gold.Red, gold.Green, gold.Blue, 64), new SKColor(0, 0, 0, 0) },
+        paint.Shader = SKShader.CreateRadialGradient(ctr, maxR * 1.25f,
+            new[] { new SKColor(gold.Red, gold.Green, gold.Blue, 80), new SKColor(0, 0, 0, 0) },
             new float[] { 0f, 1f }, SKShaderTileMode.Clamp);
-        canvas.DrawCircle(cx, cy, maxR * 1.2f, paint);
+        canvas.DrawCircle(cx, cy, maxR * 1.25f, paint);
         paint.Shader = null;
 
-        // Partiklar — orbiterer kjernen, trans-flagg-band (eller gull om girl=false)
+        // Partiklar — tett bubble som pustar + orbiterer
         for (int i = 0; i < N; i++)
         {
             double a = ang0[i] + spd[i] * 0.96 * t;
-            float rad = maxR * (float)rr[i] * Spread;
+            double rf = rFrac[i] + breathe[i] * Math.Sin(t * 0.6 + opPhase[i]);
+            float rad = maxR * (float)rf;
             float px = cx + (float)Math.Cos(a) * rad;
             float py = cy + (float)Math.Sin(a) * rad * 0.92f;
-            double op = opBase[i] * (0.5 + 0.5 * Math.Sin(t * opFreq[i] + opPhase[i]));
+            double op = opBase[i] * (0.55 + 0.45 * Math.Sin(t * opFreq[i] + opPhase[i]));
             paint.Color = Band(band[i], girl, gold, op);
-            canvas.DrawCircle(px, py, (float)(szF[i] * maxR * edge[i]), paint);
+            canvas.DrawCircle(px, py, (float)(szF[i] * maxR), paint);
         }
 
         // 8 stråler — sakte rotasjon, tinta av modus-fargen
         double rot = t * 0.08;
         paint.Style = SKPaintStyle.Stroke;
-        paint.StrokeWidth = Math.Max(1.5f, maxR * 0.018f);
+        paint.StrokeWidth = Math.Max(1.5f, maxR * 0.016f);
         for (int i = 0; i < 8; i++)
         {
             double a = rot + i / 8.0 * TwoPi;
-            float len = maxR * (0.72f + 0.08f * (float)Math.Sin(t * 0.6 + i));
+            float len = maxR * (0.78f + 0.08f * (float)Math.Sin(t * 0.6 + i));
             var tip = new SKPoint(cx + (float)Math.Cos(a) * len, cy + (float)Math.Sin(a) * len);
             paint.Shader = SKShader.CreateLinearGradient(ctr, tip,
-                new[] { new SKColor(gold.Red, gold.Green, gold.Blue, 115), new SKColor(0, 0, 0, 0) },
+                new[] { new SKColor(gold.Red, gold.Green, gold.Blue, 130), new SKColor(0, 0, 0, 0) },
                 new float[] { 0f, 1f }, SKShaderTileMode.Clamp);
             canvas.DrawLine(ctr, tip, paint);
         }
         paint.Shader = null;
 
-        // Kjerne — alltid kvit-lys
-        float coreR = maxR * 0.15f;
+        // Kjerne — kvit-lys, litt større glød
+        float coreR = maxR * 0.17f;
         byte[] cc = !girl ? new[] { gold.Red, gold.Green, gold.Blue } : White;
         paint.Style = SKPaintStyle.Fill;
         paint.Shader = SKShader.CreateRadialGradient(ctr, coreR,
-            new[] { new SKColor(255, 255, 255, 255), new SKColor(cc[0], cc[1], cc[2], 235), new SKColor(0, 0, 0, 0) },
-            new float[] { 0f, 0.38f, 1f }, SKShaderTileMode.Clamp);
+            new[] { new SKColor(255, 255, 255, 255), new SKColor(cc[0], cc[1], cc[2], 240), new SKColor(0, 0, 0, 0) },
+            new float[] { 0f, 0.40f, 1f }, SKShaderTileMode.Clamp);
         canvas.DrawCircle(cx, cy, coreR, paint);
         paint.Shader = null;
-        paint.Color = new SKColor(255, 255, 255, 252);
-        canvas.DrawCircle(cx, cy, maxR * 0.02f, paint);
+        paint.Color = new SKColor(255, 255, 255, 255);
+        canvas.DrawCircle(cx, cy, maxR * 0.025f, paint);
 
-        // Rund maske: behald innhaldet i ein sirkel, fade mjukt til gjennomsiktig.
+        // Rund maske: behald innhaldet i ein sirkel, fade mjukt til gjennomsiktig
         using (var mask = new SKPaint { BlendMode = SKBlendMode.DstIn })
         {
             mask.Shader = SKShader.CreateRadialGradient(ctr, minDim * 0.5f,
                 new[] { new SKColor(255, 255, 255, 255), new SKColor(255, 255, 255, 255), new SKColor(255, 255, 255, 0) },
-                new float[] { 0f, 0.60f, 1f }, SKShaderTileMode.Clamp);
+                new float[] { 0f, 0.66f, 1f }, SKShaderTileMode.Clamp);
             canvas.DrawRect(0, 0, w, h, mask);
         }
         canvas.Restore();
