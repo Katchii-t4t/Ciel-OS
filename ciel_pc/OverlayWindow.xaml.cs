@@ -68,23 +68,10 @@ public partial class OverlayWindow : Window
         _timer.Tick += (_, _) => { AnimateBounds(); EaseColour(); Skia.InvalidateVisual(); };
         _timer.Start();
 
-        _client.OnColour = hex =>
-        {
-            if (!TryHex(hex, out var col)) return;
-            _targetGold = col;
-            if (hex != _lastWallHex)        // synk skrivebordsbakgrunn med modus-fargen
-            {
-                _lastWallHex = hex;
-                System.Threading.Tasks.Task.Run(() => Wallpaper.Set(_orb, col, _girl));
-            }
-        };
+        // Berre modus-FARGE-sync; bakgrunnen vert no teikna levande av WallpaperWindow.
+        _client.OnColour = hex => { if (TryHex(hex, out var col)) _targetGold = col; };
         _client.Start();
-
-        // Set Ciel-orben som skrivebordsbakgrunn ved oppstart (gull til sync kjem)
-        System.Threading.Tasks.Task.Run(() => Wallpaper.Set(_orb, _gold, _girl));
     }
-
-    string _lastWallHex = "";
 
     // ── Hjørne / full presence ─────────────────────────────────────────────────
     void SetCornerTarget()
