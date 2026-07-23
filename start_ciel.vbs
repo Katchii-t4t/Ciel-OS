@@ -30,5 +30,6 @@ base = "C:\Users\Karthik\.claude\"
 sh.Run Chr(34) & py & Chr(34) & " """ & base & "stc_agent.py""", 0, False
 sh.Run Chr(34) & py & Chr(34) & " """ & base & "stc_pdf.py""",   0, False
 sh.Run Chr(34) & py & Chr(34) & " """ & base & "stc_lyd.py""",   0, False
+sh.Run Chr(34) & py & Chr(34) & " """ & base & "stc_pdf_embed.py""", 0, False
 
 Set sh = Nothing

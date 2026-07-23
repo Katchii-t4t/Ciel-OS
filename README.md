@@ -57,6 +57,23 @@ fila (nativ `ACTION_SEND` i `MainActivity`), sender den til `POST /api/goodnotes
 på hjernen, som legg den i `inn/` → notat. Ingen manuell lagring. Server-endepunktet
 og ruting er verifiserte ende-til-ende; sjølve share-handoffen testar du frå GoodNotes.
 
+## PDF i notatet (dra inn → samandrag med ein gong)
+
+`stc_pdf_embed.py` — dra ein PDF inn i eit forelesnings-notat (Obsidian lagar
+`![[fila.pdf]]`). Ciel oppdagar embed-en innan nokre sekund og skriv eit strukturert
+nynorsk-samandrag rett inn i SAME notat, i eit `[!abstract]`-callout under klamma.
+Ingen kommando, ingen `PDF_inn`-kanal.
+
+- Idempotent: kvar embed prosesserast berre éin gong (usynleg `<!-- ciel-pdf:… -->`-markør).
+- Vision-fallback (`claude-sonnet-4-6`) for skanna PDF-ar utan tekst-lag.
+- Vakta reagerer når du ENDRAR eit notat (dreg PDF inn) — masse-prosesserer ikkje
+  heile vaulten ved oppstart. `--once` prosesserer heile backlog-en.
+
+```powershell
+python stc_pdf_embed.py          # vakt
+python stc_pdf_embed.py --once   # heile backlog éin gong
+```
+
 ## Oppsett
 
 ### Krav
