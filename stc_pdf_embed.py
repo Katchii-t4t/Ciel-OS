@@ -129,6 +129,10 @@ def prosesser_notat(path: Path) -> bool:
         original = path.read_text(encoding="utf-8")
     except Exception:
         return False
+    # Vern mot klobbing: hopp over medan stc_agent streamar eit svar (cursor ▊).
+    # Neste poll (utan cursor) prosesserer embed-en trygt.
+    if "▊" in original:
+        return False
     lines = original.splitlines()
     out, done, changed = [], set(), False
     for line in lines:
